@@ -16,6 +16,18 @@
    ROUTES — edit step text, directions, and photo URLs here
 ============================================================ */
 const ROUTES = {
+  T1: {
+    name: 'Terminal 1',
+    detail: 'New extension — most European flights',
+    badgeColour: '#2D5F3F',
+    steps: [
+      { instruction: 'Leave Arrivals via the main exit',  detail: 'Head straight for the bright "Welcome to Manchester" archway.', time: '45s', direction: 'forward', photo: null },
+      { instruction: 'Turn right toward Costa Coffee',    detail: 'Walk past the meet-and-greet area. Costa will be on your left.', time: '40s', direction: 'right',   photo: null },
+      { instruction: 'Take the escalator up one level',   detail: 'Look for "Pickup / Drop-off" signs by the M&S Food shop.',       time: '60s', direction: 'up',      photo: null },
+      { instruction: 'Cross the covered walkway',         detail: 'Follow the orange line on the floor to the pickup zone.',       time: '90s', direction: 'forward', photo: null }
+    ],
+    pickup: { spot: 'Bay 14, Pickup Plaza', detail: 'Wait under the StreetCars signpost. Your driver will pull up to the kerb.', photo: null }
+  },
   T2: {
     name: 'Terminal 2',
     detail: 'New extension — most European flights',
