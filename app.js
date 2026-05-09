@@ -16,8 +16,8 @@
    ROUTES — edit step text, directions, and photo URLs here
 ============================================================ */
 const ROUTES = {
-    T4: {
-    name: 'Terminal 4',
+  T1: {
+    name: 'Terminal 1',
     detail: 'New extension — most European flights',
     badgeColour: '#2D5F3F',
     steps: [
