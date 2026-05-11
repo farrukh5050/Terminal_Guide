@@ -14,8 +14,43 @@
 <body>
   <main class="app">
 
+    <!-- =================== ENTRY (Have you arrived?) =================== -->
+    <section class="view view--entry" id="view-entry" aria-labelledby="entry-title">
+      <header class="brand">
+        <div class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 17h14M6 11l1.5-4.5A2 2 0 019.4 5h5.2a2 2 0 011.9 1.5L18 11M6 11h12v6H6z"/>
+            <circle cx="8.5" cy="14.5" r="1.2"/>
+            <circle cx="15.5" cy="14.5" r="1.2"/>
+          </svg>
+        </div>
+        <span class="brand__name">StreetCars Manchester</span>
+      </header>
+
+      <div class="booking-body">
+        <div class="welcome">
+          <p class="welcome__eyebrow">Welcome to Manchester</p>
+          <h1 class="welcome__title" id="entry-title">Have you arrived?</h1>
+          <p class="welcome__sub">We'll guide you from arrivals all the way to your pickup spot.</p>
+        </div>
+
+        <div class="entry-actions">
+          <button class="btn btn--primary btn--block" id="entry-yes" type="button">
+            <span class="btn__label">Yes, I've landed</span>
+          </button>
+          <button class="btn btn--ghost btn--block" id="entry-no" type="button">
+            <span class="btn__label">Not yet — show me the guide</span>
+          </button>
+        </div>
+      </div>
+
+      <footer class="picker-footer">
+        <p>Need help? <a href="tel:+441611234567">Call us on 0161 123 4567</a></p>
+      </footer>
+    </section>
+
     <!-- =================== BOOKING ID ENTRY =================== -->
-    <section class="view view--booking" id="view-booking" aria-labelledby="booking-title">
+    <section class="view view--booking" id="view-booking" aria-labelledby="booking-title" hidden>
       <header class="brand">
         <div class="brand__mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -62,13 +97,6 @@
       <footer class="picker-footer">
         <p>Need help? <a href="tel:+441611234567">Call us on 0161 123 4567</a></p>
       </footer>
-
-      <!-- DEBUG PANEL — local testing only. Remove before production. -->
-      <div style="margin: 1.5rem 1rem; padding: 1rem; border: 1px dashed #C46A3D; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;">
-        <p style="margin: 0 0 0.5rem; font-size: 0.7rem; opacity: 0.65; letter-spacing: 0.04em; text-transform: uppercase;">Debug — local testing only</p>
-        <button type="button" id="debug-token-btn" style="font: inherit; padding: 0.5rem 0.9rem; cursor: pointer; border: 1px solid currentColor; background: transparent; border-radius: 6px;">Get auth token</button>
-        <pre id="debug-token-output" hidden style="margin: 0.75rem 0 0; padding: 0.75rem; background: rgba(0,0,0,0.06); border-radius: 6px; font-size: 0.7rem; line-height: 1.4; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow: auto;"></pre>
-      </div>
     </section>
 
     <!-- =================== TERMINAL PICKER =================== -->
@@ -196,6 +224,12 @@
           <span class="pulse-dot" aria-hidden="true"></span>
           Driver arriving shortly
         </p>
+
+        <!-- Browse-mode CTA: shown only when state.mode === 'browse'. CSS handles toggling. -->
+        <div class="arrived-browse-cta" id="arrived-browse-cta">
+          <p>This is the StreetCars pickup spot at Manchester Airport.</p>
+          <p>Once you've landed, <a href="tel:+441611228787">call us on 0161 228 7878</a> to book a ride and we'll bring you right back here.</p>
+        </div>
       </div>
     </section>
 
@@ -225,14 +259,14 @@
           />
         </label>
 
-        <label class="field" id="message-field" hidden>
-          <span class="field__label">Your message</span>
+        <label class="field">
+          <span class="field__label">Your message (optional)</span>
           <textarea
             class="field__input field__input--textarea"
             id="callback-message"
             name="message"
             rows="3"
-            placeholder="Tell us how we can help…"
+            placeholder="Anything we should know?"
           ></textarea>
         </label>
 
@@ -247,14 +281,10 @@
         <div class="dialog__actions">
           <button class="btn btn--ghost" type="button" id="dialog-cancel">Cancel</button>
           <button class="btn btn--primary" type="submit" id="dialog-submit">
-            <span class="btn__label" id="dialog-submit-label">Request callback</span>
+            <span class="btn__label">Request callback</span>
             <span class="btn__spinner" aria-hidden="true"></span>
           </button>
         </div>
-
-        <button class="dialog__toggle" type="button" id="dialog-toggle">
-          Or send a message instead →
-        </button>
       </form>
     </dialog>
 

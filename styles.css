@@ -737,22 +737,6 @@ body { min-height: 100dvh; min-height: 100vh; }
   margin-top: 4px;
 }
 
-.dialog__toggle {
-  display: block;
-  width: 100%;
-  padding: 14px 0 4px;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--accent);
-  text-align: center;
-  text-decoration: underline;
-  text-decoration-color: var(--accent-soft);
-  text-underline-offset: 3px;
-  transition: text-decoration-color 120ms var(--ease);
-}
-
-.dialog__toggle:hover { text-decoration-color: var(--accent); }
-
 /* ============== TRANSITIONS BETWEEN VIEWS ============== */
 .view--nav.is-leaving-forward { animation: slideOutLeft 220ms var(--ease) forwards; }
 .view--nav.is-entering-forward { animation: slideInRight 260ms var(--ease); }
@@ -778,3 +762,39 @@ body { min-height: 100dvh; min-height: 100vh; }
   .view { padding: 32px 32px env(safe-area-inset-bottom, 32px); }
   .brand { padding-top: 16px; padding-bottom: 40px; }
 }
+
+/* ============================================================
+   Entry view — "Have you arrived?" yes/no buttons
+============================================================ */
+.entry-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+/* ============================================================
+   Browse mode — customer has no booking; hide booking-specific
+   elements in the nav and arrived views.
+============================================================ */
+.view--nav.mode-browse .contact-bar { display: none; }
+
+.view--arrived.mode-browse .driver-card,
+.view--arrived.mode-browse .arrived-actions,
+.view--arrived.mode-browse .arrived-eta,
+.view--arrived.mode-browse #track-btn { display: none; }
+
+/* Browse-mode CTA — only visible when state.mode === 'browse' */
+.arrived-browse-cta { display: none; }
+.view--arrived.mode-browse .arrived-browse-cta {
+  display: block;
+  margin-top: 20px;
+  padding: 16px 18px;
+  background: var(--bg-warm, #ECE5D5);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+.arrived-browse-cta p { margin: 0 0 8px; }
+.arrived-browse-cta p:last-child { margin-bottom: 0; }
+.arrived-browse-cta a { color: inherit; font-weight: 500; }

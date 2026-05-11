@@ -15,8 +15,8 @@ main = "worker.js"
 # you want to opt into newer features.
 compatibility_date = "2026-05-08"
 
-# Gives you a free URL at:
-#   https://streetcars-api.<your-cloudflare-subdomain>.workers.dev
+# Backend api url:
+# api-manair.bshire.co.uk
 # Useful for testing before wiring up your own domain.
 workers_dev = true
 

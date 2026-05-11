@@ -10,7 +10,7 @@
    API_BASE — your backend's URL ('' = same origin).
 ============================================================ */
 
-const API_BASE = 'https://streetcars-api.streetcars.workers.dev';
+const API_BASE = 'https://api-manair.bshire.co.uk';
 
 /* ============================================================
    API client
@@ -38,13 +38,6 @@ const api = {
       body: JSON.stringify({ bookingId, phone, message: message || '' })
     });
     if (!res.ok) throw new ApiError('Could not send', 'server');
-    return res.json();
-  },
-
-  // DEBUG — for local testing only.
-  async getDebugToken() {
-    const res = await fetch(`${API_BASE}/api/debug/token`);
-    if (!res.ok) throw new ApiError('Token fetch failed', 'server');
     return res.json();
   }
 };

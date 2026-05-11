@@ -32,17 +32,14 @@
         wrangler deploy
 
    6. In your Cloudflare dashboard, bind the Worker to a route
-      like  pickup.yourdomain.com/api/*  so the frontend can call
+      worker is binded to url api-manair.bshire.co.uk
       /api/booking/{id} from the same origin.
 
-   7. In app.js, set USE_MOCK_API = false.
 ============================================================ */
 
-import { getAutocabToken } from './ghost_session.js';
-
 const ALLOWED_ORIGINS = [
-  'https://manair.streetcars.workers.dev',   // production frontend
-  'http://localhost:8080'                    // local dev
+  'https://pickup.bshire.co.uk',   // production frontend
+  'http://localhost:8080'          // local dev
 ];
 
 export default {
@@ -65,11 +62,6 @@ export default {
     // POST /api/callback
     if (request.method === 'POST' && url.pathname === '/api/callback') {
       return handleCallback(request, env, cors);
-    }
-
-    // GET /api/debug/token — TESTING ONLY, remove before going public
-    if (request.method === 'GET' && url.pathname === '/api/debug/token') {
-      return handleDebugToken(env, cors);
     }
 
     return jsonResponse({ error: 'Not found' }, 404, cors);
@@ -135,6 +127,26 @@ async function handleBookingLookup(bookingId, env, cors) {
 }
 
 /* ============================================================
+  Send message to telegram chat
+============================================================ */
+
+async function sendTelegram(env, text){
+  const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      chat_id: env.CHAT_ID,
+      text
+    })
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Telegram ${res.status}: ${body}`);
+  }
+}
+
+/* ============================================================
    Callback / message request
 ============================================================ */
 async function handleCallback(request, env, cors) {
@@ -154,23 +166,16 @@ async function handleCallback(request, env, cors) {
     return jsonResponse({ error: 'Invalid phone number' }, 400, cors);
   }
 
-  // Forward to your dispatch system. Options:
-  //   1. POST to a webhook your office monitors (Slack, Teams, email-to-task)
-  //   2. POST to your dispatch software's API to create a callback task
-  //   3. Send an email or SMS via a service like Twilio
-  //
-  // Example: ping a Slack/Teams webhook
-  if (env.CALLBACK_WEBHOOK_URL) {
+  // Forward message to telegram chat
+  if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
     try {
-      await fetch(env.CALLBACK_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          text: `📞 Callback request — booking ${bookingId}\n` +
-                `Phone: ${phone}` +
-                (message ? `\nMessage: ${message}` : '')
-        })
-      });
+      await sendTelegram(
+        env,
+        `📞 Callback request\n` +
+        `Booking: ${bookingId}\n` +
+        `Phone: ${phone}` +
+        (message ? `\nMessage: ${message}` : '')
+      );
     } catch (err) {
       console.error('Webhook delivery failed:', err);
       // Don't fail the request — we've still logged it.
@@ -187,24 +192,6 @@ async function handleCallback(request, env, cors) {
   }));
 
   return jsonResponse({ ok: true }, 200, cors);
-}
-
-/* ============================================================
-   DEBUG — Auth token fetcher (TESTING ONLY)
-   Remove this handler and the matching route in fetch() before
-   exposing the worker publicly. Anyone who can reach this URL
-   can pull a live Autocab portal token.
-============================================================ */
-async function handleDebugToken(env, cors) {
-  if (!env.AUTOCAB_USERNAME || !env.AUTOCAB_PASSWORD) {
-    return jsonResponse({ error: 'AUTOCAB_USERNAME / AUTOCAB_PASSWORD not set' }, 500, cors);
-  }
-  try {
-    const { token, apiUrl } = await getAutocabToken(env);
-    return jsonResponse({ token, apiUrl }, 200, cors);
-  } catch (err) {
-    return jsonResponse({ error: err.message || 'Auth failed' }, 502, cors);
-  }
 }
 
 /* ============================================================

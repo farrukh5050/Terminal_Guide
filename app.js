@@ -16,18 +16,6 @@
    ROUTES — edit step text, directions, and photo URLs here
 ============================================================ */
 const ROUTES = {
-  T1: {
-    name: 'Terminal 1',
-    detail: 'New extension — most European flights',
-    badgeColour: '#2D5F3F',
-    steps: [
-      { instruction: 'Leave Arrivals via the main exit',  detail: 'Head straight for the bright "Welcome to Manchester" archway.', time: '45s', direction: 'forward', photo: null },
-      { instruction: 'Turn right toward Costa Coffee',    detail: 'Walk past the meet-and-greet area. Costa will be on your left.', time: '40s', direction: 'right',   photo: null },
-      { instruction: 'Take the escalator up one level',   detail: 'Look for "Pickup / Drop-off" signs by the M&S Food shop.',       time: '60s', direction: 'up',      photo: null },
-      { instruction: 'Cross the covered walkway',         detail: 'Follow the orange line on the floor to the pickup zone.',       time: '90s', direction: 'forward', photo: null }
-    ],
-    pickup: { spot: 'Bay 14, Pickup Plaza', detail: 'Wait under the StreetCars signpost. Your driver will pull up to the kerb.', photo: null }
-  },
   T2: {
     name: 'Terminal 2',
     detail: 'New extension — most European flights',
@@ -57,7 +45,8 @@ const ROUTES = {
    App state
 ============================================================ */
 const state = {
-  view: 'booking',
+  view: 'entry',
+  mode: null,       // 'with-booking' | 'browse' | null
   bookingId: null,
   booking: null,    // { driver, car, plate, phone, trackingUrl, terminal }
   terminal: null,
@@ -71,11 +60,15 @@ const $ = (id) => document.getElementById(id);
 
 const els = {
   views: {
+    entry:    $('view-entry'),
     booking:  $('view-booking'),
     picker:   $('view-picker'),
     nav:      $('view-nav'),
     arrived:  $('view-arrived')
   },
+  // Entry
+  entryYes:       $('entry-yes'),
+  entryNo:        $('entry-no'),
   // Booking
   bookingForm:    $('booking-form'),
   bookingInput:   $('booking-input'),
@@ -109,18 +102,13 @@ const els = {
   // Dialog
   dialog:         $('callback-dialog'),
   dialogForm:     $('callback-form'),
-  dialogTitle:    $('dialog-title'),
-  dialogSub:      $('dialog-sub'),
   dialogClose:    $('dialog-close'),
   dialogCancel:   $('dialog-cancel'),
   dialogSubmit:   $('dialog-submit'),
-  dialogSubmitLabel: $('dialog-submit-label'),
-  dialogToggle:   $('dialog-toggle'),
   dialogError:    $('dialog-error'),
   dialogSuccess:  $('dialog-success'),
   callbackPhone:  $('callback-phone'),
-  callbackMessage:$('callback-message'),
-  messageField:   $('message-field')
+  callbackMessage:$('callback-message')
 };
 
 /* ============================================================
@@ -157,13 +145,13 @@ function initBookingForm() {
           els.pickerEyebrow.textContent = `Welcome, ${data.passengerName}`;
         }
         showView('picker');
-        history.pushState({ view: 'picker' }, '');
+        history.pushState({ view: 'picker', mode: 'with-booking' }, '');
       }
     } catch (err) {
       if (err.code === 'not_found') {
         showBookingError("We couldn't find that booking. Please check the number and try again.");
       } else {
-        showBookingError("Something went wrong. Please try again or call us on 0161 123 4567.");
+        showBookingError("Something went wrong. Please try again or call us on 0161 228 7878.");
       }
     } finally {
       setLoading(els.bookingSubmit, false);
@@ -212,7 +200,7 @@ function selectTerminal(id, pushHistory) {
   state.stepIdx = 0;
   renderStep('forward');
   showView('nav');
-  if (pushHistory) history.pushState({ view: 'nav', terminal: id, step: 0 }, '');
+  if (pushHistory) history.pushState({ view: 'nav', terminal: id, step: 0, mode: state.mode }, '');
 }
 
 /* ============================================================
@@ -288,11 +276,11 @@ function nextStep() {
   if (state.stepIdx < route.steps.length - 1) {
     state.stepIdx += 1;
     renderStep('forward');
-    history.pushState({ view: 'nav', terminal: state.terminal, step: state.stepIdx }, '');
+    history.pushState({ view: 'nav', terminal: state.terminal, step: state.stepIdx, mode: state.mode }, '');
   } else {
     renderArrived();
     showView('arrived');
-    history.pushState({ view: 'arrived', terminal: state.terminal }, '');
+    history.pushState({ view: 'arrived', terminal: state.terminal, mode: state.mode }, '');
   }
 }
 
@@ -355,8 +343,6 @@ function renderArrived() {
 /* ============================================================
    Callback dialog
 ============================================================ */
-let dialogMode = 'callback';  // 'callback' | 'message'
-
 function openDialog() {
   resetDialog();
   if (typeof els.dialog.showModal === 'function') {
@@ -375,36 +361,10 @@ function closeDialog() {
 }
 
 function resetDialog() {
-  dialogMode = 'callback';
-  els.dialogTitle.textContent = 'Request a callback';
-  els.dialogSub.textContent = "We'll ring you straight back.";
-  els.dialogSubmitLabel.textContent = 'Request callback';
-  els.dialogToggle.textContent = 'Or send a message instead →';
-  els.messageField.hidden = true;
   els.dialogError.hidden = true;
   els.dialogSuccess.hidden = true;
   els.dialogForm.reset();
   setLoading(els.dialogSubmit, false);
-}
-
-function toggleDialogMode() {
-  if (dialogMode === 'callback') {
-    dialogMode = 'message';
-    els.dialogTitle.textContent = 'Send us a message';
-    els.dialogSub.textContent = "We'll read it and get back to you.";
-    els.dialogSubmitLabel.textContent = 'Send message';
-    els.dialogToggle.textContent = '← Request a callback instead';
-    els.messageField.hidden = false;
-    setTimeout(() => els.callbackMessage.focus(), 50);
-  } else {
-    dialogMode = 'callback';
-    els.dialogTitle.textContent = 'Request a callback';
-    els.dialogSub.textContent = "We'll ring you straight back.";
-    els.dialogSubmitLabel.textContent = 'Request callback';
-    els.dialogToggle.textContent = 'Or send a message instead →';
-    els.messageField.hidden = true;
-  }
-  els.dialogError.hidden = true;
 }
 
 async function submitDialog(e) {
@@ -418,17 +378,13 @@ async function submitDialog(e) {
     showDialogError('Please enter a valid phone number.');
     return;
   }
-  if (dialogMode === 'message' && !message) {
-    showDialogError('Please add a short message.');
-    return;
-  }
 
   setLoading(els.dialogSubmit, true);
   try {
     await api.requestCallback({
       bookingId: state.bookingId,
       phone,
-      message: dialogMode === 'message' ? message : ''
+      message
     });
     els.dialogSuccess.hidden = false;
     setTimeout(closeDialog, 1600);
@@ -466,11 +422,40 @@ function setLoading(btn, loading) {
 }
 
 /* ============================================================
+   Mode helper — toggles `.mode-browse` on nav/arrived so the
+   stylesheet can hide booking-specific elements (driver card,
+   tracking link, contact bar) when the customer has no booking.
+============================================================ */
+function applyMode() {
+  const isBrowse = state.mode === 'browse';
+  els.views.nav.classList.toggle('mode-browse', isBrowse);
+  els.views.arrived.classList.toggle('mode-browse', isBrowse);
+}
+
+/* ============================================================
    Init
 ============================================================ */
 function init() {
   initBookingForm();
   renderPicker();
+
+  // Entry — "Have you arrived?" yes/no buttons
+  els.entryYes.addEventListener('click', () => {
+    state.mode = 'with-booking';
+    applyMode();
+    showView('booking');
+    history.pushState({ view: 'booking', mode: 'with-booking' }, '');
+  });
+
+  els.entryNo.addEventListener('click', () => {
+    state.mode = 'browse';
+    state.bookingId = null;
+    state.booking = null;
+    applyMode();
+    els.pickerEyebrow.textContent = 'Browse the pickup guide';
+    showView('picker');
+    history.pushState({ view: 'picker', mode: 'browse' }, '');
+  });
 
   els.backBtn.addEventListener('click', prevStep);
   els.nextBtn.addEventListener('click', nextStep);
@@ -479,29 +464,26 @@ function init() {
 
   els.dialogClose.addEventListener('click', closeDialog);
   els.dialogCancel.addEventListener('click', closeDialog);
-  els.dialogToggle.addEventListener('click', toggleDialogMode);
   els.dialogForm.addEventListener('submit', submitDialog);
-
-  // DEBUG — auth token fetcher for local testing. Safe to leave; no-op if HTML removed.
-  const debugBtn = document.getElementById('debug-token-btn');
-  const debugOutput = document.getElementById('debug-token-output');
-  if (debugBtn && debugOutput) {
-    debugBtn.addEventListener('click', async () => {
-      debugOutput.hidden = false;
-      debugOutput.textContent = 'Loading…';
-      try {
-        const data = await api.getDebugToken();
-        debugOutput.textContent = JSON.stringify(data, null, 2);
-      } catch (err) {
-        debugOutput.textContent = 'Error: ' + (err.message || err);
-      }
-    });
-  }
 
   // Browser back button
   window.addEventListener('popstate', (e) => {
-    if (!e.state) { showView('booking'); return; }
+    if (!e.state) {
+      state.mode = null;
+      state.bookingId = null;
+      state.booking = null;
+      applyMode();
+      showView('entry');
+      return;
+    }
+    if (e.state.mode) {
+      state.mode = e.state.mode;
+      applyMode();
+    }
     switch (e.state.view) {
+      case 'booking':
+        showView('booking');
+        break;
       case 'picker':
         showView('picker');
         break;
@@ -518,7 +500,7 @@ function init() {
         showView('arrived');
         break;
       default:
-        showView('booking');
+        showView('entry');
     }
   });
 }
