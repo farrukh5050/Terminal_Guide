@@ -100,15 +100,23 @@ const els = {
   arrivedCallBtn: $('arrived-call-btn'),
   arrivedCallbackBtn: $('arrived-callback-btn'),
   // Dialog
-  dialog:         $('callback-dialog'),
-  dialogForm:     $('callback-form'),
-  dialogClose:    $('dialog-close'),
-  dialogCancel:   $('dialog-cancel'),
-  dialogSubmit:   $('dialog-submit'),
-  dialogError:    $('dialog-error'),
-  dialogSuccess:  $('dialog-success'),
-  callbackPhone:  $('callback-phone'),
-  callbackMessage:$('callback-message')
+  dialog:             $('callback-dialog'),
+  dialogForm:         $('callback-form'),
+  dialogClose:        $('dialog-close'),
+  dialogCancel:       $('dialog-cancel'),
+  dialogSubmit:       $('dialog-submit'),
+  dialogError:        $('dialog-error'),
+  dialogFormView:     $('dialog-form-view'),
+  dialogSuccessView:  $('dialog-success-view'),
+  dialogDone:         $('dialog-done'),
+  previewPhone:       $('preview-phone'),
+  previewMessage:     $('preview-message'),
+  previewPhoneRow:    $('preview-phone-row'),
+  previewMessageRow:  $('preview-message-row'),
+  callbackPhone:      $('callback-phone'),
+  callbackMessage:    $('callback-message'),
+  // Arrived (browse mode)
+  arrivedILandedBtn:  $('arrived-i-landed-btn')
 };
 
 /* ============================================================
@@ -362,7 +370,8 @@ function closeDialog() {
 
 function resetDialog() {
   els.dialogError.hidden = true;
-  els.dialogSuccess.hidden = true;
+  els.dialogFormView.hidden = false;
+  els.dialogSuccessView.hidden = true;
   els.dialogForm.reset();
   setLoading(els.dialogSubmit, false);
 }
@@ -374,7 +383,11 @@ async function submitDialog(e) {
   const phone = els.callbackPhone.value.trim();
   const message = els.callbackMessage.value.trim();
 
-  if (!isValidPhone(phone)) {
+  if (!phone && !message) {
+    showDialogError('Please enter a phone number or a message.');
+    return;
+  }
+  if (phone && !isValidPhone(phone)) {
     showDialogError('Please enter a valid phone number.');
     return;
   }
@@ -386,8 +399,13 @@ async function submitDialog(e) {
       phone,
       message
     });
-    els.dialogSuccess.hidden = false;
-    setTimeout(closeDialog, 1600);
+    // Populate preview and swap to success view (user closes manually)
+    els.previewPhone.textContent = phone || '—';
+    els.previewMessage.textContent = message || '—';
+    els.previewPhoneRow.hidden = !phone;
+    els.previewMessageRow.hidden = !message;
+    els.dialogFormView.hidden = true;
+    els.dialogSuccessView.hidden = false;
   } catch (err) {
     showDialogError("Couldn't send right now. Please try again or call us directly.");
   } finally {
@@ -464,7 +482,23 @@ function init() {
 
   els.dialogClose.addEventListener('click', closeDialog);
   els.dialogCancel.addEventListener('click', closeDialog);
+  els.dialogDone.addEventListener('click', closeDialog);
   els.dialogForm.addEventListener('submit', submitDialog);
+
+  // Browse-mode arrived screen: "I've arrived" → switch to with-booking flow
+  if (els.arrivedILandedBtn) {
+    els.arrivedILandedBtn.addEventListener('click', () => {
+      state.mode = 'with-booking';
+      state.bookingId = null;
+      state.booking = null;
+      state.terminal = null;
+      state.stepIdx = 0;
+      applyMode();
+      showView('booking');
+      history.pushState({ view: 'booking', mode: 'with-booking' }, '');
+      setTimeout(() => els.bookingInput.focus(), 100);
+    });
+  }
 
   // Browser back button
   window.addEventListener('popstate', (e) => {
@@ -506,3 +540,53 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+/* ============================================================
+   StreetCars Manchester — Services
+   ============================================================
+   Backend client and view-switching layer used by app.js.
+
+     - api.getBooking({id})        → driver details + tracking link
+     - api.requestCallback({...})  → callback / message request
+     - showView(name)              → swap the visible <section>
+
+   API_BASE — your backend's URL ('' = same origin).
+============================================================ */
+
+
+const API_BASE = 'https://api-manair.bshire.co.uk';
+
+class ApiError extends Error {
+  constructor(message, code) { super(message); this.code = code; }
+}
+
+const api = {
+  async getBooking(bookingId) {
+    const res = await fetch(`${API_BASE}/api/booking/${bookingId}`, {
+      headers: { 'Accept': 'application/json' }
+    });
+    if (res.status === 404) throw new ApiError('Booking not found', 'not_found');
+    if (!res.ok) throw new ApiError('Service unavailable', 'server');
+    return res.json();
+  },
+
+  async requestCallback({ bookingId, phone, message }) {
+    const res = await fetch(`${API_BASE}/api/callback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId, phone, message: message || '' })
+    });
+    if (!res.ok) throw new ApiError('Could not send', 'server');
+    return res.json();
+  }
+};
+
+/* ============================================================
+   View management
+   Reads `els.views` and `state.view` defined in app.js.
+============================================================ */
+function showView(name) {
+  Object.entries(els.views).forEach(([key, el]) => { el.hidden = (key !== name); });
+  state.view = name;
+  window.scrollTo({ top: 0 });
+}

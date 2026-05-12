@@ -55,14 +55,17 @@ html, body {
   min-height: 100%;
 }
 
-body { min-height: 100dvh; min-height: 100vh; }
+body {
+  min-height: 100vh;   /* fallback for older browsers */
+  min-height: 100dvh;  /* modern: real visible height, accounts for mobile URL bar */
+}
 
 /* ---------- App container ---------- */
 .app {
   max-width: 480px;
   margin: 0 auto;
-  min-height: 100dvh;
-  min-height: 100vh;
+  min-height: 100vh;   /* fallback */
+  min-height: 100dvh;  /* shrinks/grows with the mobile URL bar */
   display: flex;
   flex-direction: column;
   position: relative;
@@ -718,18 +721,6 @@ body { min-height: 100dvh; min-height: 100vh; }
   margin: 0 0 14px;
 }
 
-.dialog__success {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--success);
-  background: var(--success-soft);
-  padding: 10px 12px;
-  border-radius: var(--radius-sm);
-  margin: 0 0 14px;
-}
-
 .dialog__actions {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -798,3 +789,39 @@ body { min-height: 100dvh; min-height: 100vh; }
 .arrived-browse-cta p { margin: 0 0 8px; }
 .arrived-browse-cta p:last-child { margin-bottom: 0; }
 .arrived-browse-cta a { color: inherit; font-weight: 500; }
+.arrived-browse-cta .btn { margin-top: 14px; }
+
+/* ============================================================
+   Callback dialog — form/success view toggle + preview list
+============================================================ */
+/* Force [hidden] to win over any specific display rules on dialog views. */
+.dialog__view[hidden],
+.dialog__error[hidden] { display: none; }
+
+.dialog__preview {
+  margin: 8px 0 18px;
+  padding: 14px 16px;
+  background: var(--bg-warm, #ECE5D5);
+  border-radius: 10px;
+}
+.dialog__preview-row {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+}
+.dialog__preview-row:last-child { margin-bottom: 0; }
+.dialog__preview-row dt {
+  min-width: 70px;
+  font-weight: 500;
+  opacity: 0.65;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.dialog__preview-row dd {
+  margin: 0;
+  flex: 1;
+  word-break: break-word;
+}

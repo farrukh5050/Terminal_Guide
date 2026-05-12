@@ -45,7 +45,7 @@
       </div>
 
       <footer class="picker-footer">
-        <p>Need help? <a href="tel:+441611234567">Call us on 0161 123 4567</a></p>
+        <p>Need help? <a href="tel:+441611234567">Call us on 0161 228 7878</a></p>
       </footer>
     </section>
 
@@ -229,6 +229,9 @@
         <div class="arrived-browse-cta" id="arrived-browse-cta">
           <p>This is the StreetCars pickup spot at Manchester Airport.</p>
           <p>Once you've landed, <a href="tel:+441611228787">call us on 0161 228 7878</a> to book a ride and we'll bring you right back here.</p>
+          <button class="btn btn--primary btn--block" id="arrived-i-landed-btn" type="button">
+            <span class="btn__label">I've arrived — find my driver</span>
+          </button>
         </div>
       </div>
     </section>
@@ -242,48 +245,65 @@
           </svg>
         </button>
 
-        <h2 class="dialog__title" id="dialog-title">Request a callback</h2>
-        <p class="dialog__sub" id="dialog-sub">We'll ring you straight back.</p>
+        <!-- FORM VIEW -->
+        <div class="dialog__view" id="dialog-form-view">
+          <h2 class="dialog__title" id="dialog-title">Request a callback</h2>
+          <p class="dialog__sub">We'll ring you straight back.</p>
 
-        <label class="field">
-          <span class="field__label">Your phone number</span>
-          <input
-            class="field__input"
-            id="callback-phone"
-            name="phone"
-            type="tel"
-            inputmode="tel"
-            autocomplete="tel"
-            placeholder="07700 900123"
-            required
-          />
-        </label>
+          <label class="field">
+            <span class="field__label">Your phone number (optional)</span>
+            <input
+              class="field__input"
+              id="callback-phone"
+              name="phone"
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel"
+              placeholder="07700 900123"
+            />
+          </label>
 
-        <label class="field">
-          <span class="field__label">Your message (optional)</span>
-          <textarea
-            class="field__input field__input--textarea"
-            id="callback-message"
-            name="message"
-            rows="3"
-            placeholder="Anything we should know?"
-          ></textarea>
-        </label>
+          <label class="field">
+            <span class="field__label">Your message (optional)</span>
+            <textarea
+              class="field__input field__input--textarea"
+              id="callback-message"
+              name="message"
+              rows="3"
+              placeholder="Anything we should know?"
+            ></textarea>
+          </label>
 
-        <p class="dialog__error" id="dialog-error" hidden role="alert"></p>
-        <p class="dialog__success" id="dialog-success" hidden role="status">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M5 12l5 5L20 7"/>
-          </svg>
-          Got it — we'll be in touch in a moment.
-        </p>
+          <p class="dialog__error" id="dialog-error" hidden role="alert"></p>
 
-        <div class="dialog__actions">
-          <button class="btn btn--ghost" type="button" id="dialog-cancel">Cancel</button>
-          <button class="btn btn--primary" type="submit" id="dialog-submit">
-            <span class="btn__label">Request callback</span>
-            <span class="btn__spinner" aria-hidden="true"></span>
-          </button>
+          <div class="dialog__actions">
+            <button class="btn btn--ghost" type="button" id="dialog-cancel">Cancel</button>
+            <button class="btn btn--primary" type="submit" id="dialog-submit">
+              <span class="btn__label">Send</span>
+              <span class="btn__spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- SUCCESS / PREVIEW VIEW (hidden until a successful send) -->
+        <div class="dialog__view" id="dialog-success-view" hidden>
+          <h2 class="dialog__title">Got it — we'll be in touch.</h2>
+          <p class="dialog__sub">Here's what you sent us:</p>
+
+          <dl class="dialog__preview">
+            <div class="dialog__preview-row" id="preview-phone-row">
+              <dt>Phone</dt>
+              <dd id="preview-phone">—</dd>
+            </div>
+            <div class="dialog__preview-row" id="preview-message-row">
+              <dt>Message</dt>
+              <dd id="preview-message">—</dd>
+            </div>
+          </dl>
+
+          <div class="dialog__actions">
+            <button class="btn btn--primary btn--block" type="button" id="dialog-done">Done</button>
+          </div>
         </div>
       </form>
     </dialog>

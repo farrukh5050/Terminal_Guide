@@ -42,31 +42,40 @@ const ALLOWED_ORIGINS = [
   'http://localhost:8080'          // local dev
 ];
 
+/* ============================================================
+   Entry point
+   The Cloudflare runtime calls `fetch` on the default export
+   for every incoming HTTP request. We just delegate to
+   handleRequest so the rest of the file can avoid the naming
+   collision with the global fetch() used for outbound calls.
+============================================================ */
 export default {
-  async fetch(request, env) {
-    const origin = request.headers.get('Origin') || '';
-    const cors = corsHeaders(origin);
-
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: cors });
-    }
-
-    const url = new URL(request.url);
-
-    // GET /api/booking/{8-digit-id}
-    const bookingMatch = url.pathname.match(/^\/api\/booking\/(\d{8})$/);
-    if (request.method === 'GET' && bookingMatch) {
-      return handleBookingLookup(bookingMatch[1], env, cors);
-    }
-
-    // POST /api/callback
-    if (request.method === 'POST' && url.pathname === '/api/callback') {
-      return handleCallback(request, env, cors);
-    }
-
-    return jsonResponse({ error: 'Not found' }, 404, cors);
-  }
+  fetch: handleRequest
 };
+
+async function handleRequest(request, env) {
+  const origin = request.headers.get('Origin') || '';
+  const cors = corsHeaders(origin);
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: cors });
+  }
+
+  const url = new URL(request.url);
+
+  // GET /api/booking/{8-digit-id}
+  const bookingMatch = url.pathname.match(/^\/api\/booking\/(\d{8})$/);
+  if (request.method === 'GET' && bookingMatch) {
+    return handleBookingLookup(bookingMatch[1], env, cors);
+  }
+
+  // POST /api/callback
+  if (request.method === 'POST' && url.pathname === '/api/callback') {
+    return handleCallback(request, env, cors);
+  }
+
+  return jsonResponse({ error: 'Not found' }, 404, cors);
+}
 
 /* ============================================================
    Booking lookup
@@ -126,25 +135,6 @@ async function handleBookingLookup(bookingId, env, cors) {
   }
 }
 
-/* ============================================================
-  Send message to telegram chat
-============================================================ */
-
-async function sendTelegram(env, text){
-  const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      chat_id: env.CHAT_ID,
-      text
-    })
-  });
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Telegram ${res.status}: ${body}`);
-  }
-}
 
 /* ============================================================
    Callback / message request
@@ -193,6 +183,28 @@ async function handleCallback(request, env, cors) {
 
   return jsonResponse({ ok: true }, 200, cors);
 }
+
+
+/* ============================================================
+  Send message to telegram chat
+============================================================ */
+
+async function sendTelegram(env, text){
+  const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      chat_id: env.CHAT_ID,
+      text
+    })
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Telegram ${res.status}: ${body}`);
+  }
+}
+
 
 /* ============================================================
    Helpers
