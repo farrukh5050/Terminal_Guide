@@ -87,7 +87,22 @@ async function handleBookingLookup(bookingId, env, cors) {
   }
 
   try {
-    // 1. Get the live tracking URL
+    // 1. Check to see if the job is Completed or Cancelled before getting the tracking link
+    const bookingStatusRes = await fetch(
+      `https://autocab-api.azure-api.net/booking/v1/booking/${bookingId}`,
+      {headers: { 'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY }}
+    );
+    
+    if (bookingStatusRes.status === 404) {
+      return jsonResponse({ error: 'Booking not found' }, 404, cors);
+    }
+    if (!bookingStatusRes.ok) {
+      return jsonResponse({ error: 'Upstream error' }, 502, cors);
+    }
+
+    const bookingStatus = await bookingStatusRes.json();
+
+    // 2. Get the live tracking URL
     const trackingRes = await fetch(
       `https://autocab-api.azure-api.net/booking/v1/trackingLink/${bookingId}`,
       { headers: { 'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY } }
