@@ -133,7 +133,7 @@ function initBookingForm() {
   els.bookingForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = els.bookingInput.value.trim();
-
+    
     if (!/^\d{8}$/.test(id)) {
       showBookingError('Please enter all 8 digits of your booking ID.');
       return;
@@ -158,6 +158,8 @@ function initBookingForm() {
     } catch (err) {
       if (err.code === 'not_found') {
         showBookingError("We couldn't find that booking. Please check the number and try again.");
+      } else if (err.code === 'archived') {
+        showBookingError("Something's wrong with this booking. Please call us on 0161 228 7878.");
       } else {
         showBookingError("Something went wrong. Please try again or call us on 0161 228 7878.");
       }
@@ -566,6 +568,7 @@ const api = {
       headers: { 'Accept': 'application/json' }
     });
     if (res.status === 404) throw new ApiError('Booking not found', 'not_found');
+    if (res.status === 410) throw new ApiError('Booking no longer active', 'archived');
     if (!res.ok) throw new ApiError('Service unavailable', 'server');
     return res.json();
   },
