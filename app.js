@@ -18,26 +18,97 @@
 const ROUTES = {
   T2: {
     name: 'Terminal 2',
-    detail: 'New extension — most European flights',
+    detail: 'Walk to T2 West Multi Storey, Level 0',
     badgeColour: '#2D5F3F',
     steps: [
-      { instruction: 'Leave Arrivals via the main exit',  detail: 'Head straight for the bright "Welcome to Manchester" archway.', time: '45s', direction: 'forward', photo: null },
-      { instruction: 'Turn right toward Costa Coffee',    detail: 'Walk past the meet-and-greet area. Costa will be on your left.', time: '40s', direction: 'right',   photo: null },
-      { instruction: 'Take the escalator up one level',   detail: 'Look for "Pickup / Drop-off" signs by the M&S Food shop.',       time: '60s', direction: 'up',      photo: null },
-      { instruction: 'Cross the covered walkway',         detail: 'Follow the orange line on the floor to the pickup zone.',       time: '90s', direction: 'forward', photo: null }
+      {
+        instruction: 'Keep left past Starbucks',
+        detail: 'After baggage reclaim, head left past Starbucks. Follow signs for car parks and the Pick-up zone.',
+        time: '30s',
+        direction: 'left',
+        photo: 'photos/t2-step1.jpg'
+      },
+      {
+        instruction: 'Walk down past the escalators',
+        detail: 'Continue along the corridor with KFC on your left. Head for the exit at the far end, under the "Departures / Check in" signs.',
+        time: '45s',
+        direction: 'forward',
+        photo: 'photos/t2-step2.jpg'
+      },
+      {
+        instruction: 'Through the exit doors',
+        detail: 'Look for the overhead sign: "↑ Pick up zone  ↑ T2 West car park". Walk straight through.',
+        time: '30s',
+        direction: 'forward',
+        photo: 'photos/t2-step3.jpg'
+      },
+      {
+        instruction: 'Enter T2 West Multi Storey',
+        detail: 'You\'ll see the "P3 T2 West Multi Storey" sign. Head inside and follow the "Pre-booked" arrow.',
+        time: '45s',
+        direction: 'forward',
+        photo: 'photos/t2-step4.jpg'
+      }
     ],
-    pickup: { spot: 'Bay 14, Pickup Plaza', detail: 'Wait under the StreetCars signpost. Your driver will pull up to the kerb.', photo: null }
+    pickup: {
+      spot: 'T2 West Multi Storey, Level 0',
+      detail: 'Wait in the marked pre-booked pickup area inside the car park. Your StreetCars driver will pull up to the barrier. (If you have a Meet & Greet booking, find us at Costa Coffee opposite M&S instead.)',
+      photo: 'photos/t2-pickup.jpg'
+    }
   },
   T3: {
     name: 'Terminal 3',
-    detail: 'Domestic and short-haul European',
+    detail: 'Walk to the T3 Pick Up Zone (~125m)',
     badgeColour: '#2A4A6B',
     steps: [
-      { instruction: 'Exit Arrivals through Door 3',                detail: 'Straight ahead after baggage reclaim.',                          time: '30s', direction: 'forward', photo: null },
-      { instruction: 'Turn left and follow the orange floor markers', detail: 'Past the Boots pharmacy. Look for overhead "Taxi Pickup" signs.', time: '60s', direction: 'left',    photo: null },
-      { instruction: 'Continue down the ramp',                       detail: 'Gentle slope — easier with bags than the stairs alongside.',     time: '50s', direction: 'down',    photo: null }
+      {
+        instruction: 'Exit the terminal, head left',
+        detail: 'After baggage reclaim, take the exit signed "Terminals 1 & 2 / The Station / Drop&Go / Taxi rank". Head left once outside.',
+        time: '30s',
+        direction: 'left',
+        photo: 'photos/t3-step1.jpg'
+      },
+      {
+        instruction: 'Continue along the covered walkway',
+        detail: 'Follow the overhead "T3 Pick up zone" signs down the covered walkway.',
+        time: '45s',
+        direction: 'forward',
+        photo: 'photos/t3-step2.jpg'
+      },
+      {
+        instruction: 'Keep right at the end of the walkway',
+        detail: 'Where the walkway opens up, keep right and follow the pedestrian route toward the T3 Pick Up Zone.',
+        time: '30s',
+        direction: 'right',
+        photo: 'photos/t3-step3.jpg'
+      },
+      {
+        instruction: 'Keep left past the brick wall',
+        detail: 'Stay on the path — look for the yellow "T3 Pick Up Zone — Walking distance 125m" sign overhead.',
+        time: '45s',
+        direction: 'left',
+        photo: 'photos/t3-step4.jpg'
+      },
+      {
+        instruction: 'Keep right at the end of the paved walkway',
+        detail: 'The T3 Pick Up Zone signs are now in sight across the way. Keep right and follow them.',
+        time: '30s',
+        direction: 'right',
+        photo: 'photos/t3-step5.jpg'
+      },
+      {
+        instruction: 'Cross the pedestrian crossing',
+        detail: 'Head straight on. The zebra crossing leads you right into the T3 Pick Up Zone.',
+        time: '30s',
+        direction: 'forward',
+        photo: 'photos/t3-step6.jpg'
+      }
     ],
-    pickup: { spot: 'Bay A, Ground Level', detail: 'Just outside the doors at the end of the ramp.', photo: null }
+    pickup: {
+      spot: 'T3 Pick Up Zone',
+      detail: 'Wait at the marked pickup area just across the crossing. Your StreetCars driver will pull up to the kerb.',
+      photo: 'photos/t3-pickup.jpg'
+    }
   }
 };
 

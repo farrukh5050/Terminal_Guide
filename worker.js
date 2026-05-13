@@ -175,7 +175,12 @@ async function handleCallback(request, env, cors) {
   if (!/^\d{8}$/.test(String(bookingId || ''))) {
     return jsonResponse({ error: 'Invalid booking ID' }, 400, cors);
   }
-  if (!phone || phone.replace(/\D/g, '').length < 7) {
+  // Either phone or message is required — both empty makes no sense.
+  if (!phone && !message) {
+    return jsonResponse({ error: 'Please provide a phone number or a message' }, 400, cors);
+  }
+  // If a phone IS provided, it must look like a real number.
+  if (phone && phone.replace(/\D/g, '').length < 7) {
     return jsonResponse({ error: 'Invalid phone number' }, 400, cors);
   }
 
@@ -185,8 +190,8 @@ async function handleCallback(request, env, cors) {
       await sendTelegram(
         env,
         `📞 Callback request\n` +
-        `Booking: ${bookingId}\n` +
-        `Phone: ${phone}` +
+        `Booking: ${bookingId}` +
+        (phone   ? `\nPhone: ${phone}`     : '') +
         (message ? `\nMessage: ${message}` : '')
       );
     } catch (err) {
