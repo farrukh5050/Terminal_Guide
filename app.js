@@ -29,7 +29,7 @@ const ROUTES = {
         photo: 'photos/t2-step1.jpg'
       },
       {
-        instruction: 'Walk down past the escalators',
+        instruction: 'Walk to the exit doors',
         detail: 'Continue along the corridor with KFC on your left. Head for the exit at the far end, under the "Departures / Check in" signs.',
         time: '45s',
         direction: 'forward',
@@ -52,7 +52,7 @@ const ROUTES = {
     ],
     pickup: {
       spot: 'T2 West Multi Storey, Level 0',
-      detail: 'Wait in the marked pre-booked pickup area inside the car park. Your StreetCars driver will pull up to the barrier. (If you have a Meet & Greet booking, find us at Costa Coffee opposite M&S instead.)',
+      detail: 'Wait in the marked pre-booked pickup area inside the car park. Your StreetCars driver will pull up to the barrier. ',
       photo: 'photos/t2-pickup.jpg'
     }
   },
@@ -341,9 +341,16 @@ function renderStep(direction = 'forward') {
   const oldIcon = els.nextBtn.querySelector('svg');
   if (oldIcon) oldIcon.outerHTML = arrowSVG;
 
-  // Wire up call button to driver's phone
-  if (state.booking?.driver?.phone) {
-    els.callDriverBtn.href = `tel:${state.booking.driver.phone}`;
+  // Wire up call button — driver's phone if we have a booking, otherwise the office.
+  const callLabel = els.callDriverBtn.querySelector('span');
+  if (state.mode === 'browse') {
+    els.callDriverBtn.href = 'tel:+441611228787';
+    if (callLabel) callLabel.textContent = 'Call office';
+  } else {
+    if (state.booking?.driver?.phone) {
+      els.callDriverBtn.href = `tel:${state.booking.driver.phone}`;
+    }
+    if (callLabel) callLabel.textContent = 'Call';
   }
 
   // Animation

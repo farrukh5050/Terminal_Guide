@@ -172,7 +172,9 @@ async function handleCallback(request, env, cors) {
 
   const { bookingId, phone, message } = body || {};
 
-  if (!/^\d{8}$/.test(String(bookingId || ''))) {
+  // bookingId is optional (browse-mode users have no booking yet). If
+  // it IS supplied, it must look like a real 8-digit ID.
+  if (bookingId != null && bookingId !== '' && !/^\d{8}$/.test(String(bookingId))) {
     return jsonResponse({ error: 'Invalid booking ID' }, 400, cors);
   }
   // Either phone or message is required — both empty makes no sense.
@@ -184,13 +186,15 @@ async function handleCallback(request, env, cors) {
     return jsonResponse({ error: 'Invalid phone number' }, 400, cors);
   }
 
+  const hasBooking = bookingId != null && bookingId !== '';
+
   // Forward message to telegram chat
   if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
     try {
       await sendTelegram(
         env,
         `📞 Callback request\n` +
-        `Booking: ${bookingId}` +
+        `Booking: ${hasBooking ? bookingId : '(no booking — browse mode)'}` +
         (phone   ? `\nPhone: ${phone}`     : '') +
         (message ? `\nMessage: ${message}` : '')
       );
@@ -203,7 +207,7 @@ async function handleCallback(request, env, cors) {
   // Always log to Worker logs so the office can see it via `wrangler tail`
   console.log(JSON.stringify({
     type: 'callback_request',
-    bookingId,
+    bookingId: hasBooking ? bookingId : null,
     phone,
     message: message || null,
     timestamp: new Date().toISOString()

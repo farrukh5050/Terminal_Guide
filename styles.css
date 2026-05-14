@@ -766,10 +766,9 @@ body {
 
 /* ============================================================
    Browse mode — customer has no booking; hide booking-specific
-   elements in the nav and arrived views.
+   elements in the nav and arrived views. The contact bar stays
+   visible so callers can still reach the office.
 ============================================================ */
-.view--nav.mode-browse .contact-bar { display: none; }
-
 .view--arrived.mode-browse .driver-card,
 .view--arrived.mode-browse .arrived-actions,
 .view--arrived.mode-browse .arrived-eta,
