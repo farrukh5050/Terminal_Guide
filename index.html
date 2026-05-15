@@ -16,6 +16,9 @@
 
     <!-- =================== ENTRY (Have you arrived?) =================== -->
     <section class="view view--entry" id="view-entry" aria-labelledby="entry-title">
+      <!-- Language picker -->
+      <div class="lang-picker" id="lang-picker" role="group" aria-label="Language"></div>
+
       <header class="brand">
         <div class="brand__mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -24,28 +27,31 @@
             <circle cx="15.5" cy="14.5" r="1.2"/>
           </svg>
         </div>
-        <span class="brand__name">StreetCars Manchester</span>
+        <span class="brand__name" data-i18n="brand.name">StreetCars Manchester</span>
       </header>
 
       <div class="booking-body">
         <div class="welcome">
-          <p class="welcome__eyebrow">Welcome to Manchester</p>
-          <h1 class="welcome__title" id="entry-title">Have you arrived?</h1>
-          <p class="welcome__sub">We'll guide you from arrivals all the way to your pickup spot.</p>
+          <p class="welcome__eyebrow" data-i18n="entry.eyebrow">Welcome to Manchester</p>
+          <h1 class="welcome__title" id="entry-title" data-i18n="entry.title">Have you arrived?</h1>
+          <p class="welcome__sub" data-i18n="entry.subtitle">We'll guide you from arrivals all the way to your pickup spot.</p>
         </div>
 
         <div class="entry-actions">
           <button class="btn btn--primary btn--block" id="entry-yes" type="button">
-            <span class="btn__label">Yes, I've landed</span>
+            <span class="btn__label" data-i18n="entry.yes">Yes, I've landed</span>
           </button>
           <button class="btn btn--ghost btn--block" id="entry-no" type="button">
-            <span class="btn__label">Not yet — show me the guide</span>
+            <span class="btn__label" data-i18n="entry.no">Not yet — show me the guide</span>
           </button>
         </div>
       </div>
 
       <footer class="picker-footer">
-        <p>Need help? <a href="tel:+441611234567">Call us on 0161 228 7878</a></p>
+        <p>
+          <span data-i18n="footer.help_prefix">Need help?</span>
+          <a href="tel:+441611228787" data-i18n="footer.call_us">Call us on 0161 228 7878</a>
+        </p>
       </footer>
     </section>
 
@@ -59,18 +65,18 @@
             <circle cx="15.5" cy="14.5" r="1.2"/>
           </svg>
         </div>
-        <span class="brand__name">StreetCars Manchester</span>
+        <span class="brand__name" data-i18n="brand.name">StreetCars Manchester</span>
       </header>
 
       <div class="booking-body">
         <div class="welcome">
-          <p class="welcome__eyebrow">Welcome to Manchester</p>
-          <h1 class="welcome__title" id="booking-title">Find your driver.</h1>
-          <p class="welcome__sub">Enter the booking ID we sent to your email or phone.</p>
+          <p class="welcome__eyebrow" data-i18n="booking.eyebrow">Welcome to Manchester</p>
+          <h1 class="welcome__title" id="booking-title" data-i18n="booking.title">Find your driver.</h1>
+          <p class="welcome__sub" data-i18n="booking.subtitle">Enter the booking ID we sent to your email or phone.</p>
         </div>
 
         <form class="booking-form" id="booking-form" novalidate>
-          <label for="booking-input" class="booking-form__label">Booking ID</label>
+          <label for="booking-input" class="booking-form__label" data-i18n="booking.label">Booking ID</label>
           <input
             class="booking-form__input"
             id="booking-input"
@@ -85,17 +91,20 @@
             aria-describedby="booking-error booking-help"
           />
           <p class="booking-form__error" id="booking-error" hidden role="alert"></p>
-          <p class="booking-form__help" id="booking-help">8 digits — find it in your confirmation message.</p>
+          <p class="booking-form__help" id="booking-help" data-i18n="booking.help">8 digits — find it in your confirmation message.</p>
 
           <button class="btn btn--primary btn--block" id="booking-submit" type="submit">
-            <span class="btn__label">Continue</span>
+            <span class="btn__label" data-i18n="booking.continue">Continue</span>
             <span class="btn__spinner" aria-hidden="true"></span>
           </button>
         </form>
       </div>
 
       <footer class="picker-footer">
-        <p>Need help? <a href="tel:+441611234567">Call us on 0161 123 4567</a></p>
+        <p>
+          <span data-i18n="footer.help_prefix">Need help?</span>
+          <a href="tel:+441611228787" data-i18n="footer.call_us">Call us on 0161 228 7878</a>
+        </p>
       </footer>
     </section>
 
@@ -109,14 +118,15 @@
             <circle cx="15.5" cy="14.5" r="1.2"/>
           </svg>
         </div>
-        <span class="brand__name">StreetCars Manchester</span>
+        <span class="brand__name" data-i18n="brand.name">StreetCars Manchester</span>
       </header>
 
       <div class="picker-body">
         <div class="welcome">
+          <!-- picker-eyebrow text is set dynamically by app.js (confirmed / browse / welcome name) -->
           <p class="welcome__eyebrow" id="picker-eyebrow">Booking confirmed</p>
-          <h1 class="welcome__title" id="picker-title">Which terminal?</h1>
-          <p class="welcome__sub">Pick where you've just landed and we'll walk you to the car.</p>
+          <h1 class="welcome__title" id="picker-title" data-i18n="picker.title">Which terminal?</h1>
+          <p class="welcome__sub" data-i18n="picker.subtitle">Pick where you've just landed and we'll walk you to the car.</p>
         </div>
         <ul class="terminals" role="list" id="terminals-list"></ul>
       </div>
@@ -125,17 +135,15 @@
     <!-- =================== NAVIGATION =================== -->
     <section class="view view--nav" id="view-nav" aria-labelledby="step-instruction" hidden>
       <header class="nav-header">
-        <button class="icon-btn" id="back-btn" aria-label="Go back" type="button">
+        <button class="icon-btn" id="back-btn" type="button" data-i18n-attr="aria-label:nav.back" aria-label="Go back">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 18l-6-6 6-6"/>
           </svg>
         </button>
         <div class="nav-progress">
           <div class="nav-progress__steps" id="progress-steps" aria-hidden="true"></div>
-          <p class="nav-progress__label">
-            Step <span id="step-current">1</span> of <span id="step-total">5</span>
-            <span class="nav-progress__time"> · <span id="step-time">~60s</span></span>
-          </p>
+          <!-- Whole label is built by app.js so the "Step N of M" wording can be translated cleanly -->
+          <p class="nav-progress__label" id="step-progress-label">Step 1 of 5 · ~60s</p>
         </div>
       </header>
 
@@ -166,7 +174,7 @@
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
               <path d="M7 9h10M7 13h6"/>
             </svg>
-            <span>Request callback</span>
+            <span data-i18n="nav.callback">Request callback</span>
           </button>
         </div>
       </footer>
@@ -179,14 +187,17 @@
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M5 12l5 5L20 7"/>
           </svg>
-          You've arrived
+          <span data-i18n="arrived.youve_arrived">You've arrived</span>
         </div>
       </header>
 
       <div class="photo photo--pickup" id="pickup-photo"></div>
 
       <div class="arrived-body">
-        <h2 class="arrived-title" id="arrived-title">Pickup at <span id="pickup-spot">Bay C, Level 1</span></h2>
+        <h2 class="arrived-title" id="arrived-title">
+          <span data-i18n="arrived.pickup_at">Pickup at</span>
+          <span id="pickup-spot">Bay C, Level 1</span>
+        </h2>
         <p class="arrived-sub" id="pickup-detail">Look for the blue and white StreetCars sign.</p>
 
         <div class="driver-card">
@@ -202,7 +213,7 @@
             <circle cx="12" cy="10" r="3"/>
             <path d="M12 2a8 8 0 00-8 8c0 5.5 8 12 8 12s8-6.5 8-12a8 8 0 00-8-8z"/>
           </svg>
-          Track driver live
+          <span data-i18n="arrived.track">Track driver live</span>
         </a>
 
         <div class="arrived-actions">
@@ -210,27 +221,31 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3.1-8.7A2 2 0 014 2h3a2 2 0 012 1.7c.1.9.3 1.7.6 2.5a2 2 0 01-.5 2.1L7.9 9.6a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.8.3 1.6.5 2.5.6A2 2 0 0122 16.9z"/>
             </svg>
-            Call driver
+            <span data-i18n="arrived.call_driver">Call office</span>
           </a>
           <button class="btn btn--ghost" id="arrived-callback-btn" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
             </svg>
-            Callback
+            <span data-i18n="arrived.callback">Callback</span>
           </button>
         </div>
 
         <p class="arrived-eta">
           <span class="pulse-dot" aria-hidden="true"></span>
-          Driver arriving shortly
+          <span data-i18n="arrived.eta">Driver arriving shortly</span>
         </p>
 
         <!-- Browse-mode CTA: shown only when state.mode === 'browse'. CSS handles toggling. -->
         <div class="arrived-browse-cta" id="arrived-browse-cta">
-          <p>This is the StreetCars pickup spot at Manchester Airport.</p>
-          <p>Once you've landed, <a href="tel:+441611228787">call us on 0161 228 7878</a> to book a ride and we'll bring you right back here.</p>
+          <p data-i18n="arrived.browse.message_1">This is the StreetCars pickup spot at Manchester Airport.</p>
+          <p>
+            <span data-i18n="arrived.browse.message_2_before">Once you've landed,</span>
+            <a href="tel:+441611228787" data-i18n="arrived.browse.call_us_link">call us on 0161 228 7878</a>
+            <span data-i18n="arrived.browse.message_2_after">to book a ride and we'll bring you right back here.</span>
+          </p>
           <button class="btn btn--primary btn--block" id="arrived-i-landed-btn" type="button">
-            <span class="btn__label">I've arrived — find my driver</span>
+            <span class="btn__label" data-i18n="arrived.browse.i_landed">I've arrived — find my driver</span>
           </button>
         </div>
       </div>
@@ -239,7 +254,7 @@
     <!-- =================== CALLBACK DIALOG =================== -->
     <dialog class="dialog" id="callback-dialog" aria-labelledby="dialog-title">
       <form class="dialog__form" id="callback-form" method="dialog">
-        <button class="dialog__close" type="button" id="dialog-close" aria-label="Close">
+        <button class="dialog__close" type="button" id="dialog-close" data-i18n-attr="aria-label:dialog.close" aria-label="Close">
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
@@ -247,11 +262,11 @@
 
         <!-- FORM VIEW -->
         <div class="dialog__view" id="dialog-form-view">
-          <h2 class="dialog__title" id="dialog-title">Request a callback</h2>
-          <p class="dialog__sub">We'll ring you straight back.</p>
+          <h2 class="dialog__title" id="dialog-title" data-i18n="dialog.title">Request a callback</h2>
+          <p class="dialog__sub" data-i18n="dialog.subtitle">We'll ring you straight back.</p>
 
           <label class="field">
-            <span class="field__label">Your phone number (optional)</span>
+            <span class="field__label" data-i18n="dialog.phone_label">Your phone number (optional)</span>
             <input
               class="field__input"
               id="callback-phone"
@@ -259,17 +274,19 @@
               type="tel"
               inputmode="tel"
               autocomplete="tel"
+              data-i18n-placeholder="dialog.phone_placeholder"
               placeholder="07700 900123"
             />
           </label>
 
           <label class="field">
-            <span class="field__label">Your message (optional)</span>
+            <span class="field__label" data-i18n="dialog.message_label">Your message (optional)</span>
             <textarea
               class="field__input field__input--textarea"
               id="callback-message"
               name="message"
               rows="3"
+              data-i18n-placeholder="dialog.message_placeholder"
               placeholder="Anything we should know?"
             ></textarea>
           </label>
@@ -277,9 +294,9 @@
           <p class="dialog__error" id="dialog-error" hidden role="alert"></p>
 
           <div class="dialog__actions">
-            <button class="btn btn--ghost" type="button" id="dialog-cancel">Cancel</button>
+            <button class="btn btn--ghost" type="button" id="dialog-cancel" data-i18n="dialog.cancel">Cancel</button>
             <button class="btn btn--primary" type="submit" id="dialog-submit">
-              <span class="btn__label">Send</span>
+              <span class="btn__label" data-i18n="dialog.send">Send</span>
               <span class="btn__spinner" aria-hidden="true"></span>
             </button>
           </div>
@@ -287,22 +304,22 @@
 
         <!-- SUCCESS / PREVIEW VIEW (hidden until a successful send) -->
         <div class="dialog__view" id="dialog-success-view" hidden>
-          <h2 class="dialog__title">Got it — we'll be in touch.</h2>
-          <p class="dialog__sub">Here's what you sent us:</p>
+          <h2 class="dialog__title" data-i18n="dialog.success_title">Got it — we'll be in touch.</h2>
+          <p class="dialog__sub" data-i18n="dialog.success_subtitle">Here's what you sent us:</p>
 
           <dl class="dialog__preview">
             <div class="dialog__preview-row" id="preview-phone-row">
-              <dt>Phone</dt>
+              <dt data-i18n="dialog.preview_phone">Phone</dt>
               <dd id="preview-phone">—</dd>
             </div>
             <div class="dialog__preview-row" id="preview-message-row">
-              <dt>Message</dt>
+              <dt data-i18n="dialog.preview_message">Message</dt>
               <dd id="preview-message">—</dd>
             </div>
           </dl>
 
           <div class="dialog__actions">
-            <button class="btn btn--primary btn--block" type="button" id="dialog-done">Done</button>
+            <button class="btn btn--primary btn--block" type="button" id="dialog-done" data-i18n="dialog.done">Done</button>
           </div>
         </div>
       </form>
@@ -310,6 +327,7 @@
 
   </main>
 
+  <script src="i18n.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

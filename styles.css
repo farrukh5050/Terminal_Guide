@@ -534,7 +534,7 @@ body {
 }
 
 .driver-card {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 14px;
   padding: 16px;
@@ -823,4 +823,90 @@ body {
   margin: 0;
   flex: 1;
   word-break: break-word;
+}
+
+/* ============================================================
+   Language picker (flag chips on the entry screen)
+============================================================ */
+.lang-picker {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 4px 0 0;
+  /* Keep the picker LTR even when the page is RTL — flag order stays put */
+  direction: ltr;
+}
+
+.lang-picker__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  min-height: 36px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 120ms var(--ease), border-color 120ms var(--ease), color 120ms var(--ease);
+}
+
+.lang-picker__btn:hover {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.lang-picker__btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.lang-picker__btn.is-active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface);
+}
+
+.lang-picker__flag {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.lang-picker__short {
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+/* ============================================================
+   RTL support (Arabic and any other right-to-left languages)
+   The browser handles the bulk of mirroring once <html dir="rtl">
+   is set. These rules cover a few directional UI affordances.
+============================================================ */
+[dir="rtl"] .icon-btn svg,
+[dir="rtl"] .terminal__chevron,
+[dir="rtl"] #next-btn svg {
+  transform: scaleX(-1);
+}
+
+/* Phone numbers should stay left-to-right even inside RTL paragraphs */
+[dir="rtl"] a[href^="tel:"] {
+  unicode-bidi: embed;
+  direction: ltr;
+  display: inline-block;
+}
+
+/* Chinese/Cantonese display tweak — Fraunces doesn't carry Chinese glyphs.
+   Fall back to system Chinese fonts so headings still render cleanly. */
+:root[lang^="zh"] .welcome__title,
+:root[lang^="zh"] .arrived-title,
+:root[lang^="zh"] .dialog__title {
+  font-family: var(--font-body), 'PingFang SC', 'PingFang TC', 'Microsoft YaHei',
+               'Microsoft JhengHei', 'Noto Sans CJK SC', 'Noto Sans CJK TC',
+               sans-serif;
 }

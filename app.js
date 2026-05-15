@@ -7,110 +7,56 @@
      3. Step-by-step navigation            (call + callback at bottom)
      4. Arrived screen                     (driver info + tracking link)
 
-   The backend client (booking + callback requests) and view-switching
-   live in services.js. Edit terminal copy, photos, and step ordering
-   in the ROUTES object below.
+   All user-facing copy lives in i18n.js — edit translations there.
+   This file holds ONLY data that doesn't translate (photos, times,
+   directions, badge colours) plus the flow/render logic.
 ============================================================ */
 
 /* ============================================================
-   ROUTES — edit step text, directions, and photo URLs here
+   ROUTES — non-translated data (photos, times, directions).
+   The textual step copy lives under `route.<key>.*` keys in i18n.js.
 ============================================================ */
 const ROUTES = {
   T2: {
-    name: 'Terminal 2',
-    detail: 'Walk to T2 West Multi Storey, Level 0',
+    key: 't2',
     badgeColour: '#2D5F3F',
     steps: [
-      {
-        instruction: 'Keep left past Starbucks',
-        detail: 'After baggage reclaim, head left past Starbucks. Follow signs for car parks and the Pick-up zone.',
-        time: '30s',
-        direction: 'left',
-        photo: 'photos/t2-step1.jpg'
-      },
-      {
-        instruction: 'Walk to the exit doors',
-        detail: 'Continue along the corridor with KFC on your left. Head for the exit at the far end, under the "Departures / Check in" signs.',
-        time: '45s',
-        direction: 'forward',
-        photo: 'photos/t2-step2.jpg'
-      },
-      {
-        instruction: 'Through the exit doors',
-        detail: 'Look for the overhead sign: "↑ Pick up zone  ↑ T2 West car park". Walk straight through.',
-        time: '30s',
-        direction: 'forward',
-        photo: 'photos/t2-step3.jpg'
-      },
-      {
-        instruction: 'Enter T2 West Multi Storey',
-        detail: 'You\'ll see the "P3 T2 West Multi Storey" sign. Head inside and follow the "Pre-booked" arrow.',
-        time: '45s',
-        direction: 'forward',
-        photo: 'photos/t2-step4.jpg'
-      }
+      { time: '30s', direction: 'left',    photo: 'photos/t2-step1.jpg' },
+      { time: '45s', direction: 'forward', photo: 'photos/t2-step2.jpg' },
+      { time: '30s', direction: 'forward', photo: 'photos/t2-step3.jpg' },
+      { time: '45s', direction: 'forward', photo: 'photos/t2-step4.jpg' }
     ],
-    pickup: {
-      spot: 'T2 West Multi Storey, Level 0',
-      detail: 'Wait in the marked pre-booked pickup area inside the car park. Your StreetCars driver will pull up to the barrier. ',
-      photo: 'photos/t2-pickup.jpg'
-    }
+    pickup: { photo: 'photos/t2-pickup.jpg' }
   },
   T3: {
-    name: 'Terminal 3',
-    detail: 'Walk to the T3 Pick Up Zone (~125m)',
+    key: 't3',
     badgeColour: '#2A4A6B',
     steps: [
-      {
-        instruction: 'Exit the terminal, head left',
-        detail: 'After baggage reclaim, take the exit signed "Terminals 1 & 2 / The Station / Drop&Go / Taxi rank". Head left once outside.',
-        time: '30s',
-        direction: 'left',
-        photo: 'photos/t3-step1.jpg'
-      },
-      {
-        instruction: 'Continue along the covered walkway',
-        detail: 'Follow the overhead "T3 Pick up zone" signs down the covered walkway.',
-        time: '45s',
-        direction: 'forward',
-        photo: 'photos/t3-step2.jpg'
-      },
-      {
-        instruction: 'Keep right at the end of the walkway',
-        detail: 'Where the walkway opens up, keep right and follow the pedestrian route toward the T3 Pick Up Zone.',
-        time: '30s',
-        direction: 'right',
-        photo: 'photos/t3-step3.jpg'
-      },
-      {
-        instruction: 'Keep left past the brick wall',
-        detail: 'Stay on the path — look for the yellow "T3 Pick Up Zone — Walking distance 125m" sign overhead.',
-        time: '45s',
-        direction: 'left',
-        photo: 'photos/t3-step4.jpg'
-      },
-      {
-        instruction: 'Keep right at the end of the paved walkway',
-        detail: 'The T3 Pick Up Zone signs are now in sight across the way. Keep right and follow them.',
-        time: '30s',
-        direction: 'right',
-        photo: 'photos/t3-step5.jpg'
-      },
-      {
-        instruction: 'Cross the pedestrian crossing',
-        detail: 'Head straight on. The zebra crossing leads you right into the T3 Pick Up Zone.',
-        time: '30s',
-        direction: 'forward',
-        photo: 'photos/t3-step6.jpg'
-      }
+      { time: '30s', direction: 'left',    photo: 'photos/t3-step1.jpg' },
+      { time: '45s', direction: 'forward', photo: 'photos/t3-step2.jpg' },
+      { time: '30s', direction: 'right',   photo: 'photos/t3-step3.jpg' },
+      { time: '45s', direction: 'left',    photo: 'photos/t3-step4.jpg' },
+      { time: '30s', direction: 'right',   photo: 'photos/t3-step5.jpg' },
+      { time: '30s', direction: 'forward', photo: 'photos/t3-step6.jpg' }
     ],
-    pickup: {
-      spot: 'T3 Pick Up Zone',
-      detail: 'Wait at the marked pickup area just across the crossing. Your StreetCars driver will pull up to the kerb.',
-      photo: 'photos/t3-pickup.jpg'
-    }
+    pickup: { photo: 'photos/t3-pickup.jpg' }
   }
 };
+
+/* Translation helpers for route copy */
+function routeName(id)            { return t('route.' + ROUTES[id].key + '.name'); }
+function routeDetail(id)          { return t('route.' + ROUTES[id].key + '.detail'); }
+function stepInstruction(id, idx) { return t('route.' + ROUTES[id].key + '.step' + (idx + 1) + '.instruction'); }
+function stepDetail(id, idx)      { return t('route.' + ROUTES[id].key + '.step' + (idx + 1) + '.detail'); }
+function pickupSpot(id)           { return t('route.' + ROUTES[id].key + '.pickup.spot'); }
+function pickupDetail(id)         { return t('route.' + ROUTES[id].key + '.pickup.detail'); }
+
+/* Tiny HTML escape so translations are safe to inject via innerHTML */
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => (
+    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+  ));
+}
 
 /* ============================================================
    App state
@@ -154,9 +100,7 @@ const els = {
   callbackBtn:    $('callback-btn'),
   callDriverBtn:  $('call-driver-btn'),
   progressSteps:  $('progress-steps'),
-  stepCurrent:    $('step-current'),
-  stepTotal:      $('step-total'),
-  stepTime:       $('step-time'),
+  stepProgressLabel: $('step-progress-label'),
   stepPhoto:      $('step-photo'),
   stepInstruction:$('step-instruction'),
   stepDetail:     $('step-detail'),
@@ -204,9 +148,9 @@ function initBookingForm() {
   els.bookingForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = els.bookingInput.value.trim();
-    
+
     if (!/^\d{8}$/.test(id)) {
-      showBookingError('Please enter all 8 digits of your booking ID.');
+      showBookingError(t('booking.error.invalid'));
       return;
     }
 
@@ -220,19 +164,17 @@ function initBookingForm() {
       if (data.terminal && ROUTES[data.terminal]) {
         selectTerminal(data.terminal, /*pushHistory*/ true);
       } else {
-        if (data.passengerName) {
-          els.pickerEyebrow.textContent = `Welcome, ${data.passengerName}`;
-        }
+        updatePickerEyebrow();
         showView('picker');
         history.pushState({ view: 'picker', mode: 'with-booking' }, '');
       }
     } catch (err) {
       if (err.code === 'not_found') {
-        showBookingError("We couldn't find that booking. Please check the number and try again.");
+        showBookingError(t('booking.error.not_found'));
       } else if (err.code === 'archived') {
-        showBookingError("Something's wrong with this booking. Please call us on 0161 228 7878.");
+        showBookingError(t('booking.error.archived'));
       } else {
-        showBookingError("Something went wrong. Please try again or call us on 0161 228 7878.");
+        showBookingError(t('booking.error.server'));
       }
     } finally {
       setLoading(els.bookingSubmit, false);
@@ -258,10 +200,10 @@ function renderPicker() {
   els.terminalsList.innerHTML = Object.entries(ROUTES).map(([id, route]) => `
     <li>
       <button class="terminal" data-terminal="${id}" type="button">
-        <span class="terminal__badge" style="background: ${route.badgeColour}1A; color: ${route.badgeColour};">${id}</span>
+        <span class="terminal__badge" style="background: ${route.badgeColour}1A; color: ${route.badgeColour};">${esc(id)}</span>
         <span class="terminal__info">
-          <span class="terminal__name">${route.name}</span>
-          <span class="terminal__detail">${route.detail}</span>
+          <span class="terminal__name">${esc(routeName(id))}</span>
+          <span class="terminal__detail">${esc(routeDetail(id))}</span>
         </span>
         <svg class="terminal__chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M9 6l6 6-6 6"/>
@@ -284,6 +226,17 @@ function selectTerminal(id, pushHistory) {
   if (pushHistory) history.pushState({ view: 'nav', terminal: id, step: 0, mode: state.mode }, '');
 }
 
+/* Set the picker's eyebrow line based on the current mode/state. */
+function updatePickerEyebrow() {
+  if (state.mode === 'browse') {
+    els.pickerEyebrow.textContent = t('picker.eyebrow.browse');
+  } else if (state.booking && state.booking.passengerName) {
+    els.pickerEyebrow.textContent = t('picker.eyebrow.welcome', { name: state.booking.passengerName });
+  } else {
+    els.pickerEyebrow.textContent = t('picker.eyebrow.confirmed');
+  }
+}
+
 /* ============================================================
    Step 3 — Navigation
 ============================================================ */
@@ -296,10 +249,10 @@ const ARROW_PATHS = {
   down:    'M12 4v16M6 14l6 6 6-6'
 };
 
-function buildPhotoHTML(step, hint) {
+function buildPhotoHTML(step, hint, alt) {
   if (step.photo) {
-    return `<img src="${step.photo}" alt="${step.instruction}" />
-            <span class="photo__hint">${hint}</span>`;
+    return `<img src="${esc(step.photo)}" alt="${esc(alt)}" />
+            <span class="photo__hint">${esc(hint)}</span>`;
   }
   const path = ARROW_PATHS[step.direction] || ARROW_PATHS.forward;
   return `
@@ -309,7 +262,7 @@ function buildPhotoHTML(step, hint) {
         <path d="${path}"/>
       </svg>
     </div>
-    <span class="photo__hint">${hint}</span>
+    <span class="photo__hint">${esc(hint)}</span>
   `;
 }
 
@@ -317,40 +270,46 @@ function renderStep(direction = 'forward') {
   const route = ROUTES[state.terminal];
   const step = route.steps[state.stepIdx];
   const total = route.steps.length;
+  const current = state.stepIdx + 1;
 
   // Progress bars
   els.progressSteps.innerHTML = Array.from({ length: total }, (_, i) =>
     `<span class="${i <= state.stepIdx ? 'active' : ''}"></span>`
   ).join('');
 
-  els.stepCurrent.textContent = state.stepIdx + 1;
-  els.stepTotal.textContent = total;
-  els.stepTime.textContent = `~${step.time}`;
-  els.stepInstruction.textContent = step.instruction;
-  els.stepDetail.textContent = step.detail;
+  // Single translated label: "Step 1 of 5 · ~30s"
+  els.stepProgressLabel.textContent = t('nav.step_progress', { current, total, time: step.time });
+
+  const instruction = stepInstruction(state.terminal, state.stepIdx);
+  const detail = stepDetail(state.terminal, state.stepIdx);
+  els.stepInstruction.textContent = instruction;
+  els.stepDetail.textContent = detail;
 
   els.stepPhoto.className = 'photo';
-  els.stepPhoto.innerHTML = buildPhotoHTML(step, `Photo ${state.stepIdx + 1} of ${total}`);
+  els.stepPhoto.innerHTML = buildPhotoHTML(
+    step,
+    t('nav.photo_count', { current, total }),
+    instruction
+  );
 
   // Update Next button label/icon
   const isLast = state.stepIdx === total - 1;
   const labelEl = els.nextBtn.querySelector('.btn__label');
   const arrowSVG = `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${isLast ? 'M5 12l5 5L20 7' : 'M5 12h14M13 6l6 6-6 6'}"/></svg>`;
-  labelEl.textContent = isLast ? "I'm at the pickup spot" : "I see this — next";
-  // Replace the trailing icon
+  labelEl.textContent = isLast ? t('nav.last') : t('nav.next');
   const oldIcon = els.nextBtn.querySelector('svg');
   if (oldIcon) oldIcon.outerHTML = arrowSVG;
 
-  // Wire up call button — driver's phone if we have a booking, otherwise the office.
+  // Call button — driver's phone if we have a booking, otherwise the office.
   const callLabel = els.callDriverBtn.querySelector('span');
   if (state.mode === 'browse') {
     els.callDriverBtn.href = 'tel:+441611228787';
-    if (callLabel) callLabel.textContent = 'Call office';
+    if (callLabel) callLabel.textContent = t('nav.call_office');
   } else {
-    if (state.booking?.driver?.phone) {
+    if (state.booking && state.booking.driver && state.booking.driver.phone) {
       els.callDriverBtn.href = `tel:${state.booking.driver.phone}`;
     }
-    if (callLabel) callLabel.textContent = 'Call';
+    if (callLabel) callLabel.textContent = t('nav.call');
   }
 
   // Animation
@@ -367,6 +326,12 @@ function nextStep() {
     history.pushState({ view: 'nav', terminal: state.terminal, step: state.stepIdx, mode: state.mode }, '');
   } else {
     renderArrived();
+    // Notify the office via Telegram — only for real bookings; browse-mode
+    // users have no booking ID and the backend would reject the call.
+    if (state.mode !== 'browse' && state.bookingId) {
+      api.arrived({ bookingId: state.bookingId, terminal: state.terminal })
+        .catch(err => console.error('Arrival notification failed:', err));
+    }
     showView('arrived');
     history.pushState({ view: 'arrived', terminal: state.terminal, mode: state.mode }, '');
   }
@@ -391,12 +356,13 @@ function initials(name) {
 
 function renderArrived() {
   const route = ROUTES[state.terminal];
-  const b = state.booking?.driver || {};
+  const b = (state.booking && state.booking.driver) || {};
+  const spot = pickupSpot(state.terminal);
 
-  els.pickupSpot.textContent = route.pickup.spot;
-  els.pickupDetail.textContent = route.pickup.detail;
+  els.pickupSpot.textContent = spot;
+  els.pickupDetail.textContent = pickupDetail(state.terminal);
 
-  els.driverName.textContent = b.name || 'Your driver';
+  els.driverName.textContent = b.name || t('arrived.your_driver');
   els.driverVehicle.textContent = b.car && b.plate ? `${b.car} · ${b.plate}` : '';
   els.driverAvatar.textContent = b.name ? initials(b.name) : '?';
 
@@ -405,7 +371,7 @@ function renderArrived() {
   }
 
   // Live tracking link from Autocab
-  if (state.booking?.trackingUrl) {
+  if (state.booking && state.booking.trackingUrl) {
     let url = state.booking.trackingUrl;
     if (!/^https?:/i.test(url)) url = `https://${url}`;
     els.trackBtn.href = url;
@@ -415,15 +381,15 @@ function renderArrived() {
   // Pickup photo
   els.pickupPhoto.className = 'photo photo--pickup';
   if (route.pickup.photo) {
-    els.pickupPhoto.innerHTML = `<img src="${route.pickup.photo}" alt="Pickup spot" />
-      <span class="photo__hint">${route.pickup.spot}</span>`;
+    els.pickupPhoto.innerHTML = `<img src="${esc(route.pickup.photo)}" alt="${esc(spot)}" />
+      <span class="photo__hint">${esc(spot)}</span>`;
   } else {
     els.pickupPhoto.innerHTML = `
       <div class="photo--placeholder" aria-hidden="true"></div>
       <div class="photo__arrow" aria-hidden="true" style="background: var(--success);">
         <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>
       </div>
-      <span class="photo__hint">${route.pickup.spot}</span>
+      <span class="photo__hint">${esc(spot)}</span>
     `;
   }
 }
@@ -436,7 +402,6 @@ function openDialog() {
   if (typeof els.dialog.showModal === 'function') {
     els.dialog.showModal();
   } else {
-    // Very old browser fallback — show as plain block
     els.dialog.setAttribute('open', '');
   }
   setTimeout(() => els.callbackPhone.focus(), 100);
@@ -464,11 +429,11 @@ async function submitDialog(e) {
   const message = els.callbackMessage.value.trim();
 
   if (!phone && !message) {
-    showDialogError('Please enter a phone number or a message.');
+    showDialogError(t('dialog.error.phone_or_message'));
     return;
   }
   if (phone && !isValidPhone(phone)) {
-    showDialogError('Please enter a valid phone number.');
+    showDialogError(t('dialog.error.invalid_phone'));
     return;
   }
 
@@ -479,7 +444,6 @@ async function submitDialog(e) {
       phone,
       message
     });
-    // Populate preview and swap to success view (user closes manually)
     els.previewPhone.textContent = phone || '—';
     els.previewMessage.textContent = message || '—';
     els.previewPhoneRow.hidden = !phone;
@@ -487,7 +451,7 @@ async function submitDialog(e) {
     els.dialogFormView.hidden = true;
     els.dialogSuccessView.hidden = false;
   } catch (err) {
-    showDialogError("Couldn't send right now. Please try again or call us directly.");
+    showDialogError(t('dialog.error.server'));
   } finally {
     setLoading(els.dialogSubmit, false);
   }
@@ -499,7 +463,6 @@ function showDialogError(msg) {
 }
 
 function isValidPhone(p) {
-  // Loose validation: at least 7 digits, allow + spaces hyphens
   const digits = p.replace(/[^\d]/g, '');
   return digits.length >= 7 && digits.length <= 15;
 }
@@ -522,7 +485,7 @@ function setLoading(btn, loading) {
 /* ============================================================
    Mode helper — toggles `.mode-browse` on nav/arrived so the
    stylesheet can hide booking-specific elements (driver card,
-   tracking link, contact bar) when the customer has no booking.
+   tracking link) when the customer has no booking.
 ============================================================ */
 function applyMode() {
   const isBrowse = state.mode === 'browse';
@@ -535,6 +498,12 @@ function applyMode() {
 ============================================================ */
 function init() {
   initBookingForm();
+
+  // i18n — apply detected/stored language, then render the flag picker.
+  applyLang(detectLang());
+  renderLangPicker('lang-picker');
+
+  // Render the terminal picker once (will re-render on lang change).
   renderPicker();
 
   // Entry — "Have you arrived?" yes/no buttons
@@ -550,7 +519,7 @@ function init() {
     state.bookingId = null;
     state.booking = null;
     applyMode();
-    els.pickerEyebrow.textContent = 'Browse the pickup guide';
+    updatePickerEyebrow();
     showView('picker');
     history.pushState({ view: 'picker', mode: 'browse' }, '');
   });
@@ -580,6 +549,14 @@ function init() {
     });
   }
 
+  // Re-render dynamic content when the language changes.
+  window.addEventListener('langchange', () => {
+    renderPicker();
+    updatePickerEyebrow();
+    if (state.view === 'nav' && state.terminal) renderStep('forward');
+    if (state.view === 'arrived' && state.terminal) renderArrived();
+  });
+
   // Browser back button
   window.addEventListener('popstate', (e) => {
     if (!e.state) {
@@ -599,6 +576,7 @@ function init() {
         showView('booking');
         break;
       case 'picker':
+        updatePickerEyebrow();
         showView('picker');
         break;
       case 'nav':
@@ -624,15 +602,12 @@ document.addEventListener('DOMContentLoaded', init);
 /* ============================================================
    StreetCars Manchester — Services
    ============================================================
-   Backend client and view-switching layer used by app.js.
+   Backend client and view-switching layer.
 
      - api.getBooking({id})        → driver details + tracking link
      - api.requestCallback({...})  → callback / message request
      - showView(name)              → swap the visible <section>
-
-   API_BASE — your backend's URL ('' = same origin).
 ============================================================ */
-
 
 const API_BASE = 'https://api-manair.bshire.co.uk';
 
@@ -659,12 +634,21 @@ const api = {
     });
     if (!res.ok) throw new ApiError('Could not send', 'server');
     return res.json();
-  }
-};
+  },
+
+  async arrived({ bookingId, terminal }) {
+    const res = await fetch(`${API_BASE}/api/arrived`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId, terminal })
+    });
+    if (!res.ok) throw new ApiError('Service unavailable', 'server');
+    return res.json();
+  },
+} 
 
 /* ============================================================
    View management
-   Reads `els.views` and `state.view` defined in app.js.
 ============================================================ */
 function showView(name) {
   Object.entries(els.views).forEach(([key, el]) => { el.hidden = (key !== name); });

@@ -74,6 +74,11 @@ async function handleRequest(request, env) {
     return handleCallback(request, env, cors);
   }
 
+  // POST /api/arrived
+  if (request.method === 'POST' && url.pathname === '/api/arrived') {
+    return handleArrival(request, env, cors);
+  }
+
   return jsonResponse({ error: 'Not found' }, 404, cors);
 }
 
@@ -158,6 +163,51 @@ async function handleBookingLookup(bookingId, env, cors) {
   }
 }
 
+/* ============================================================
+  Arrived / message the operators and let them know the passangers is at the waiting spot
+============================================================ */
+async function handleArrival(request, env, cors) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Invalid request' }, 400, cors);
+  }
+
+  const { bookingId, terminal } = body || {};
+
+  // bookingId must be a real 8-digit ID — browse-mode "arrivals" are
+  // walkthrough exploration, not actual passengers, so the frontend
+  // shouldn't be calling this endpoint without one.
+  if (!/^\d{8}$/.test(String(bookingId || ''))) {
+    return jsonResponse({ error: 'Invalid booking ID' }, 400, cors);
+  }
+
+  // Forward to Telegram so the office sees the passenger is waiting.
+  if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
+    try {
+      await sendTelegram(
+        env,
+        `🚖 Passenger at pickup spot\n` +
+        `Booking: ${bookingId}` +
+        (terminal ? `\nTerminal: ${terminal}` : '')
+      );
+    } catch (err) {
+      console.error('Telegram delivery failed:', err);
+      // Don't fail the request — we've still logged it.
+    }
+  }
+
+  // Always log to Worker logs so the office can see it via `wrangler tail`
+  console.log(JSON.stringify({
+    type: 'arrival',
+    bookingId,
+    terminal: terminal || null,
+    timestamp: new Date().toISOString()
+  }));
+
+  return jsonResponse({ ok: true }, 200, cors);
+}
 
 /* ============================================================
    Callback / message request
