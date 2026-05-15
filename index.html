@@ -50,7 +50,7 @@
       <footer class="picker-footer">
         <p>
           <span data-i18n="footer.help_prefix">Need help?</span>
-          <a href="tel:+441611228787" data-i18n="footer.call_us">Call us on 0161 228 7878</a>
+          <a href="tel:+441617400000" data-i18n="footer.call_us">Call us on 0161 740 0000</a>
         </p>
       </footer>
     </section>
@@ -103,7 +103,7 @@
       <footer class="picker-footer">
         <p>
           <span data-i18n="footer.help_prefix">Need help?</span>
-          <a href="tel:+441611228787" data-i18n="footer.call_us">Call us on 0161 228 7878</a>
+          <a href="tel:+441617400000" data-i18n="footer.call_us">Call us on 0161 740 0000</a>
         </p>
       </footer>
     </section>
@@ -241,7 +241,7 @@
           <p data-i18n="arrived.browse.message_1">This is the StreetCars pickup spot at Manchester Airport.</p>
           <p>
             <span data-i18n="arrived.browse.message_2_before">Once you've landed,</span>
-            <a href="tel:+441611228787" data-i18n="arrived.browse.call_us_link">call us on 0161 228 7878</a>
+            <a href="tel:+441617400000" data-i18n="arrived.browse.call_us_link">call us on 0161 740 0000</a>
             <span data-i18n="arrived.browse.message_2_after">to book a ride and we'll bring you right back here.</span>
           </p>
           <button class="btn btn--primary btn--block" id="arrived-i-landed-btn" type="button">
@@ -320,6 +320,25 @@
 
           <div class="dialog__actions">
             <button class="btn btn--primary btn--block" type="button" id="dialog-done" data-i18n="dialog.done">Done</button>
+          </div>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- =================== DISPATCH CONFIRMATION DIALOG =================== -->
+    <dialog class="dialog" id="dispatch-dialog" aria-labelledby="dispatch-title">
+      <form class="dialog__form" id="dispatch-form" method="dialog">
+        <div class="dialog__view">
+          <h2 class="dialog__title" id="dispatch-title" data-i18n="dispatch.title">We're sending your driver</h2>
+          <p class="dialog__sub" data-i18n="dispatch.message">Your driver will be dispatched immediately. Please continue only once you’ve collected your baggage and are ready to head to the pickup point. (We’ll then provide directions to your pickup location.)</p>
+          <p class="dialog__error" id="dispatch-error" hidden role="alert"></p>
+
+          <div class="dialog__actions">
+            <button class="btn btn--ghost" type="button" id="dispatch-cancel" data-i18n="dispatch.cancel">Cancel</button>
+            <button class="btn btn--primary" type="submit" id="dispatch-confirm">
+              <span class="btn__label" data-i18n="dispatch.confirm">Confirm</span>
+              <span class="btn__spinner" aria-hidden="true"></span>
+            </button>
           </div>
         </div>
       </form>

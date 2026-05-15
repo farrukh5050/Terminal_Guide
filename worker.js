@@ -79,6 +79,11 @@ async function handleRequest(request, env) {
     return handleArrival(request, env, cors);
   }
 
+  // POST /api/dispatch — passenger has confirmed; office should dispatch the car.
+  if (request.method === 'POST' && url.pathname === '/api/dispatch') {
+    return handleDispatch(request, env, cors);
+  }
+
   return jsonResponse({ error: 'Not found' }, 404, cors);
 }
 
@@ -129,6 +134,8 @@ async function handleBookingLookup(bookingId, env, cors) {
     }
 
     const tracking = await trackingRes.json();
+    // TODO GET DRIVERS DETAILS ONCE THE TAXI IS DISPATCHED
+    // const driverId = bookingStatus.dispatchedBooking.driverId
 
     // 2. TODO: Add a second call here to fetch driver/vehicle details.
     //    Autocab's booking-details endpoint returns driver name, vehicle,
@@ -149,10 +156,12 @@ async function handleBookingLookup(bookingId, env, cors) {
       passengerName: '',                       // from details.passengerName
       terminal: null,                          // 'T1' | 'T2' | 'T3' | null
       driver: {
+        // TODO: Add a second call here to fetch driver/vehicle details.
+        // driverId: driverId,
         name:  'Tom Khan',                     // from details.driver.name
         car:   'Blue Skoda Octavia',           // from details.vehicle.make/model
         plate: 'MA21 XYZ',                     // from details.vehicle.registration
-        phone: '+441611234567'                 // from details.driver.phone
+        phone: '+44167400000'                 // from details.driver.phone
       },
       trackingUrl: tracking.url
     }, 200, cors);
@@ -201,6 +210,49 @@ async function handleArrival(request, env, cors) {
   // Always log to Worker logs so the office can see it via `wrangler tail`
   console.log(JSON.stringify({
     type: 'arrival',
+    bookingId,
+    terminal: terminal || null,
+    timestamp: new Date().toISOString()
+  }));
+
+  return jsonResponse({ ok: true }, 200, cors);
+}
+
+/* ============================================================
+   Dispatch — passenger just confirmed; alert the office to send
+   the car. Fires off a high-priority Telegram message.
+============================================================ */
+async function handleDispatch(request, env, cors) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Invalid request' }, 400, cors);
+  }
+
+  const { bookingId, terminal } = body || {};
+
+  if (!/^\d{8}$/.test(String(bookingId || ''))) {
+    return jsonResponse({ error: 'Invalid booking ID' }, 400, cors);
+  }
+
+  if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
+    try {
+      await sendTelegram(
+        env,
+        `🚨 CUSTOMER HAS ARRIVED - DISPATCH CAR\n` +
+        `Booking: ${bookingId}` +
+        (terminal ? `\nTerminal: ${terminal}` : '')
+      );
+    } catch (err) {
+      console.error('Telegram delivery failed:', err);
+      // Tell the frontend so it can surface a retry — this one matters.
+      return jsonResponse({ error: 'Notification failed' }, 502, cors);
+    }
+  }
+
+  console.log(JSON.stringify({
+    type: 'dispatch_request',
     bookingId,
     terminal: terminal || null,
     timestamp: new Date().toISOString()

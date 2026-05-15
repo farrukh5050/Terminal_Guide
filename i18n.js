@@ -106,6 +106,13 @@ const I18N = {
     'dialog.error.invalid_phone': 'Please enter a valid phone number.',
     'dialog.error.server': "Couldn't send right now. Please try again or call us directly.",
 
+    // Dispatch confirmation
+    'dispatch.title': "We're sending your driver",
+    'dispatch.message': "Your driver will be dispatched immediately. Please continue only once you've collected your baggage and are ready to head to the pickup point. We'll then provide directions to your pickup location.",
+    'dispatch.confirm': 'Confirm',
+    'dispatch.cancel': 'Cancel',
+    'dispatch.error': "Couldn't notify the office. Please try again or call us.",
+
     // Routes — Terminal 2
     'route.t2.name': 'Terminal 2',
     'route.t2.detail': 'Walk to T2 West Multi Storey, Level 0',
@@ -211,6 +218,12 @@ const I18N = {
     'dialog.error.invalid_phone': 'Introduce un número de teléfono válido.',
     'dialog.error.server': 'No se ha podido enviar. Inténtalo de nuevo o llámanos directamente.',
 
+    'dispatch.title': 'Enviando a tu conductor',
+    'dispatch.message': 'Tu conductor será enviado de inmediato. Por favor, continúa solo cuando hayas recogido tu equipaje y estés listo para dirigirte al punto de recogida. Después te indicaremos cómo llegar al punto de recogida.',
+    'dispatch.confirm': 'Confirmar',
+    'dispatch.cancel': 'Cancelar',
+    'dispatch.error': 'No se pudo notificar a la oficina. Inténtalo de nuevo o llámanos.',
+
     'route.t2.name': 'Terminal 2',
     'route.t2.detail': 'Camina hasta T2 West Multi Storey, Nivel 0',
     'route.t2.step1.instruction': 'Mantente a la izquierda pasando Starbucks',
@@ -313,6 +326,12 @@ const I18N = {
     'dialog.error.phone_or_message': 'يرجى إدخال رقم هاتف أو رسالة.',
     'dialog.error.invalid_phone': 'يرجى إدخال رقم هاتف صحيح.',
     'dialog.error.server': 'تعذر الإرسال الآن. يرجى المحاولة مرة أخرى أو الاتصال بنا مباشرة.',
+
+    'dispatch.title': 'نُرسل سائقك إليك',
+    'dispatch.message': 'سيتم إرسال سائقك فورًا. يُرجى المتابعة فقط بعد استلام أمتعتك والاستعداد للتوجه إلى نقطة الالتقاء. بعد ذلك، سنزوّدك بالتوجيهات للوصول إلى موقع الاستلام.',
+    'dispatch.confirm': 'تأكيد',
+    'dispatch.cancel': 'إلغاء',
+    'dispatch.error': 'تعذّر إبلاغ المكتب. حاول مرة أخرى أو اتصل بنا.',
 
     'route.t2.name': 'الصالة 2',
     'route.t2.detail': 'امشِ إلى T2 West Multi Storey، الطابق 0',
@@ -417,6 +436,12 @@ const I18N = {
     'dialog.error.invalid_phone': '请输入有效的电话号码。',
     'dialog.error.server': '目前无法发送。请重试或直接致电我们。',
 
+    'dispatch.title': '正在派遣您的司机',
+    'dispatch.message': '我们将立即为您安排司机。请在领取行李并准备前往接送点后再继续。随后我们会为您提供前往接送地点的路线指引。',
+    'dispatch.confirm': '确认',
+    'dispatch.cancel': '取消',
+    'dispatch.error': '无法通知办公室。请重试或致电我们。',
+
     'route.t2.name': '2 号航站楼',
     'route.t2.detail': '步行至 T2 West Multi Storey，0 层',
     'route.t2.step1.instruction': '在 Starbucks 旁靠左走',
@@ -519,6 +544,12 @@ const I18N = {
     'dialog.error.phone_or_message': '請輸入電話號碼或留言。',
     'dialog.error.invalid_phone': '請輸入有效嘅電話號碼。',
     'dialog.error.server': '依家發送唔到。請再試或直接致電我哋。',
+
+    'dispatch.title': '正在派遣您嘅司機',
+    'dispatch.message': '我哋會即時安排您嘅司機。請喺攞齊行李並準備前往接送地點後先繼續。之後我哋會提供前往接送地點嘅指引。',
+    'dispatch.confirm': '確認',
+    'dispatch.cancel': '取消',
+    'dispatch.error': '無法通知辦公室。請再試或致電我哋。',
 
     'route.t2.name': '2 號客運大樓',
     'route.t2.detail': '步行至 T2 West Multi Storey，0 層',

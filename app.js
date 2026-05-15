@@ -131,7 +131,13 @@ const els = {
   callbackPhone:      $('callback-phone'),
   callbackMessage:    $('callback-message'),
   // Arrived (browse mode)
-  arrivedILandedBtn:  $('arrived-i-landed-btn')
+  arrivedILandedBtn:  $('arrived-i-landed-btn'),
+  // Dispatch confirmation dialog
+  dispatchDialog:   $('dispatch-dialog'),
+  dispatchForm:     $('dispatch-form'),
+  dispatchCancel:   $('dispatch-cancel'),
+  dispatchConfirm:  $('dispatch-confirm'),
+  dispatchError:    $('dispatch-error')
 };
 
 /* ============================================================
@@ -160,14 +166,9 @@ function initBookingForm() {
       state.bookingId = id;
       state.booking = data;
 
-      // If the dispatch system tells us the terminal, skip the picker.
-      if (data.terminal && ROUTES[data.terminal]) {
-        selectTerminal(data.terminal, /*pushHistory*/ true);
-      } else {
-        updatePickerEyebrow();
-        showView('picker');
-        history.pushState({ view: 'picker', mode: 'with-booking' }, '');
-      }
+      // Confirmation dialog — passenger must explicitly confirm before
+      // we tell the office to dispatch the car.
+      openDispatchDialog();
     } catch (err) {
       if (err.code === 'not_found') {
         showBookingError(t('booking.error.not_found'));
@@ -303,7 +304,7 @@ function renderStep(direction = 'forward') {
   // Call button — driver's phone if we have a booking, otherwise the office.
   const callLabel = els.callDriverBtn.querySelector('span');
   if (state.mode === 'browse') {
-    els.callDriverBtn.href = 'tel:+441611228787';
+    els.callDriverBtn.href = 'tel:+441617400000';
     if (callLabel) callLabel.textContent = t('nav.call_office');
   } else {
     if (state.booking && state.booking.driver && state.booking.driver.phone) {
@@ -356,18 +357,18 @@ function initials(name) {
 
 function renderArrived() {
   const route = ROUTES[state.terminal];
-  const b = (state.booking && state.booking.driver) || {};
+  const booking = (state.booking && state.booking.driver) || {};
   const spot = pickupSpot(state.terminal);
 
   els.pickupSpot.textContent = spot;
   els.pickupDetail.textContent = pickupDetail(state.terminal);
 
-  els.driverName.textContent = b.name || t('arrived.your_driver');
-  els.driverVehicle.textContent = b.car && b.plate ? `${b.car} · ${b.plate}` : '';
-  els.driverAvatar.textContent = b.name ? initials(b.name) : '?';
+  els.driverName.textContent = booking.name || t('arrived.your_driver');
+  els.driverVehicle.textContent = booking.car && booking.plate ? `${booking.car} · ${booking.plate}` : '';
+  els.driverAvatar.textContent = booking.name ? initials(booking.name) : '?';
 
-  if (b.phone) {
-    els.arrivedCallBtn.href = `tel:${b.phone}`;
+  if (booking.phone) {
+    els.arrivedCallBtn.href = `tel:${booking.phone}`;
   }
 
   // Live tracking link from Autocab
@@ -468,6 +469,59 @@ function isValidPhone(p) {
 }
 
 /* ============================================================
+   Dispatch confirmation dialog
+   Shown after a successful booking lookup. On confirm we fire
+   /api/dispatch (which Telegrams the office) and then move the
+   passenger onto the terminal picker or step-by-step nav.
+============================================================ */
+function openDispatchDialog() {
+  els.dispatchError.hidden = true;
+  setLoading(els.dispatchConfirm, false);
+  if (typeof els.dispatchDialog.showModal === 'function') {
+    els.dispatchDialog.showModal();
+  } else {
+    els.dispatchDialog.setAttribute('open', '');
+  }
+}
+
+function closeDispatchDialog() {
+  if (typeof els.dispatchDialog.close === 'function') els.dispatchDialog.close();
+  else els.dispatchDialog.removeAttribute('open');
+}
+
+async function confirmDispatch(e) {
+  e.preventDefault();
+  els.dispatchError.hidden = true;
+  setLoading(els.dispatchConfirm, true);
+  try {
+    await api.dispatch({
+      bookingId: state.bookingId,
+      terminal: state.booking?.terminal || null
+    });
+    closeDispatchDialog();
+    proceedAfterDispatch();
+  } catch (err) {
+    els.dispatchError.textContent = t('dispatch.error');
+    els.dispatchError.hidden = false;
+  } finally {
+    setLoading(els.dispatchConfirm, false);
+  }
+}
+
+/* Same routing logic that used to live inline in the booking submit:
+   skip the picker if the dispatch system already told us the terminal. */
+function proceedAfterDispatch() {
+  const data = state.booking;
+  if (data && data.terminal && ROUTES[data.terminal]) {
+    selectTerminal(data.terminal, /*pushHistory*/ true);
+  } else {
+    updatePickerEyebrow();
+    showView('picker');
+    history.pushState({ view: 'picker', mode: 'with-booking' }, '');
+  }
+}
+
+/* ============================================================
    Loading-state helper
 ============================================================ */
 function setLoading(btn, loading) {
@@ -533,6 +587,10 @@ function init() {
   els.dialogCancel.addEventListener('click', closeDialog);
   els.dialogDone.addEventListener('click', closeDialog);
   els.dialogForm.addEventListener('submit', submitDialog);
+
+  // Dispatch confirmation
+  els.dispatchCancel.addEventListener('click', closeDispatchDialog);
+  els.dispatchForm.addEventListener('submit', confirmDispatch);
 
   // Browse-mode arrived screen: "I've arrived" → switch to with-booking flow
   if (els.arrivedILandedBtn) {
@@ -606,10 +664,13 @@ document.addEventListener('DOMContentLoaded', init);
 
      - api.getBooking({id})        → driver details + tracking link
      - api.requestCallback({...})  → callback / message request
+     - api.handleArrived({...})   → send telegram message to operators 
      - showView(name)              → swap the visible <section>
 ============================================================ */
 
-const API_BASE = 'https://api-manair.bshire.co.uk';
+const API_BASE = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+  ? 'http://localhost:8787'
+  : 'https://api-manair.bshire.co.uk';
 
 class ApiError extends Error {
   constructor(message, code) { super(message); this.code = code; }
@@ -645,7 +706,17 @@ const api = {
     if (!res.ok) throw new ApiError('Service unavailable', 'server');
     return res.json();
   },
-} 
+
+  async dispatch({ bookingId, terminal }) {
+    const res = await fetch(`${API_BASE}/api/dispatch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bookingId, terminal })
+    });
+    if (!res.ok) throw new ApiError('Could not dispatch', 'server');
+    return res.json();
+  }
+};
 
 /* ============================================================
    View management
