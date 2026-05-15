@@ -534,7 +534,7 @@ body {
 }
 
 .driver-card {
-  display: none;
+  display: flex;
   align-items: center;
   gap: 14px;
   padding: 16px;

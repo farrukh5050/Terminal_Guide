@@ -134,20 +134,42 @@ async function handleBookingLookup(bookingId, env, cors) {
     }
 
     const tracking = await trackingRes.json();
-    // TODO GET DRIVERS DETAILS ONCE THE TAXI IS DISPATCHED
-    // const driverId = bookingStatus.dispatchedBooking.driverId
+
 
     // 2. TODO: Add a second call here to fetch driver/vehicle details.
-    //    Autocab's booking-details endpoint returns driver name, vehicle,
-    //    plate, and assigned terminal. Plug it in here, then return them
-    //    below instead of the placeholders.
-    //
-    //    Example:
-    //    const detailsRes = await fetch(
-    //      `https://autocab-api.azure-api.net/booking/v1/${bookingId}`,
-    //      { headers: { 'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY } }
-    //    );
-    //    const details = await detailsRes.json();
+    // GET DRIVERS DETAILS ONCE THE TAXI IS DISPATCHED
+const driverId = bookingStatus.dispatchedBooking?.driverId ?? null;
+const vehicleId = bookingStatus.dispatchedBooking?.vehicleId ?? null;
+
+let driverDetails = null;
+
+if (driverId) {
+  const driverRes = await fetch(
+    `https://autocab-api.azure-api.net/booking/v1/drivers/${driverId}`,
+    {
+      headers: {
+        'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY
+      }
+    }
+  );
+
+  if (driverRes.ok) {
+    driverDetails = await driverRes.json();
+  }
+}
+
+const driver = driverId && driverDetails
+  ? {
+      driverId,
+      vehicleId,
+      name: `${driverDetails.forename || ''} ${driverDetails.surname || ''}`.trim(),
+      car: 'Ford Fiesta',
+      plate: 'ABC123',
+    }
+  : {
+      status: 'pending',
+      message: 'Driver will be dispatched soon'
+    };
 
     // 3. Return ONLY what the browser needs — never proxy raw API output.
     return jsonResponse({
@@ -155,14 +177,7 @@ async function handleBookingLookup(bookingId, env, cors) {
       bookingId,
       passengerName: '',                       // from details.passengerName
       terminal: null,                          // 'T1' | 'T2' | 'T3' | null
-      driver: {
-        // TODO: Add a second call here to fetch driver/vehicle details.
-        // driverId: driverId,
-        name:  'Tom Khan',                     // from details.driver.name
-        car:   'Blue Skoda Octavia',           // from details.vehicle.make/model
-        plate: 'MA21 XYZ',                     // from details.vehicle.registration
-        phone: '+44167400000'                 // from details.driver.phone
-      },
+      driver,
       trackingUrl: tracking.url
     }, 200, cors);
 

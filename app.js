@@ -363,12 +363,21 @@ function renderArrived() {
   els.pickupSpot.textContent = spot;
   els.pickupDetail.textContent = pickupDetail(state.terminal);
 
-  els.driverName.textContent = booking.name || t('arrived.your_driver');
-  els.driverVehicle.textContent = booking.car && booking.plate ? `${booking.car} · ${booking.plate}` : '';
-  els.driverAvatar.textContent = booking.name ? initials(booking.name) : '?';
+  if (booking.status === 'pending'){
+    els.driverName.textContent = booking.message || 'Driver will be dispatched soon';
+    els.driverVehicle.textContent = '';
+    els.driverAvatar.textContent = '…';
+    els.arrivedCallBtn.href = 'tel:+441617400000'
+  } else {
+    els.driverName.textContent = booking.name || t('arrived.your_driver');
+    els.driverVehicle.textContent = booking.car && booking.plate
+      ? `${booking.car} · ${booking.plate}`
+      : '';
+    els.driverAvatar.textContent = booking.name ? initials(booking.name) : '?';
 
   if (booking.phone) {
     els.arrivedCallBtn.href = `tel:${booking.phone}`;
+  }
   }
 
   // Live tracking link from Autocab
