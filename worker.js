@@ -84,7 +84,151 @@ async function handleRequest(request, env) {
     return handleDispatch(request, env, cors);
   }
 
+  // POST /api/telegram-webhook — webhook for replying to passengers in the website.
+  if (request.method === 'POST' && url.pathname === '/api/telegram-webhook') {
+    return handleTelegramWebhook(request,env, cors);
+  }
+
+  // POST /api/chat/send to send messages to website
+  if (request.method === 'POST' && url.pathname === '/api/chat/send') {
+    return handleChatSend(request, env, cors);
+  }
+
+  // GET /api/debug/messages — temporary debug route
+  if (request.method === 'GET' && url.pathname === '/api/debug/messages') {
+    return handleDebugMessages(request, env, cors);
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/debug/keys') {
+  return handleDebugKeys(env, cors);
+}
+
   return jsonResponse({ error: 'Not found' }, 404, cors);
+}
+
+async function handleDebugKeys(env, cors) {
+  const list = await env.CHAT_MESSAGES.list();
+
+  return jsonResponse(
+    list.keys.map(k => k.name),
+    200,
+    cors
+  );
+}
+
+async function handleDebugMessages(request, env, cors) {
+  const url = new URL(request.url);
+
+  const threadId = url.searchParams.get('thread') || '36';
+
+  const key = `thread:${threadId}:messages`;
+
+  const data = await env.CHAT_MESSAGES.get(key);
+
+  return jsonResponse(
+    JSON.parse(data || '[]'),
+    200,
+    cors
+  );
+}
+
+
+async function handleChatSend(request, env, cors) {
+  let body;
+
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Invalid request' }, 400, cors);
+  }
+
+  const { bookingId, terminal, message } = body || {};
+
+  if (!/^\d{8}$/.test(String(bookingId || ''))) {
+    return jsonResponse({ error: 'Invalid booking ID' }, 400, cors);
+  }
+
+  if (!message || !String(message).trim()) {
+    return jsonResponse({ error: 'Message is required' }, 400, cors);
+  }
+
+  const threadId = await getOrCreatePassengerThread(env, bookingId, terminal);
+
+  const key = `thread:${threadId}:messages`;
+
+  const existing = JSON.parse(await env.CHAT_MESSAGES.get(key) || '[]');
+
+  existing.push({
+    from: 'passenger',
+    text: String(message).trim(),
+    timestamp: Date.now()
+  });
+
+  await env.CHAT_MESSAGES.put(key, JSON.stringify(existing));
+
+  await sendMessageToTopic(
+    env,
+    threadId,
+    `💬 Passenger message\n\n` +
+    `Booking: ${bookingId}\n` +
+    `Terminal: ${terminal || 'Unknown'}\n\n` +
+    String(message).trim()
+  );
+
+  return jsonResponse({
+    ok: true,
+    threadId
+  }, 200, cors);
+}
+
+async function getOrCreatePassengerThread(env, bookingId, terminal) {
+  const key = `booking:${bookingId}:thread`;
+
+  const existingThreadId = await env.CHAT_MESSAGES.get(key);
+
+  if (existingThreadId) {
+    return Number(existingThreadId);
+  }
+
+  const topic = await createPassengerTopic(env, bookingId, terminal);
+
+  await env.CHAT_MESSAGES.put(key, String(topic.message_thread_id));
+
+  return topic.message_thread_id;
+}
+
+async function handleTelegramWebhook(request, env, cors) {
+  const update = await request.json();
+
+  const message = update.message;
+
+  if (
+    message &&
+    message.message_thread_id &&
+    message.text &&
+    !message.from?.is_bot
+  ) {
+    const threadId = message.message_thread_id;
+
+    const key = `thread:${threadId}:messages`;
+
+    const existing = JSON.parse(
+      await env.CHAT_MESSAGES.get(key) || '[]'
+    );
+
+    existing.push({
+      from: 'operator',
+      text: message.text,
+      timestamp: Date.now()
+    });
+
+    await env.CHAT_MESSAGES.put(
+      key,
+      JSON.stringify(existing)
+    );
+  }
+
+  return jsonResponse({ ok: true }, 200, cors);
 }
 
 /* ============================================================
@@ -210,11 +354,19 @@ async function handleArrival(request, env, cors) {
   // Forward to Telegram so the office sees the passenger is waiting.
   if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
     try {
-      await sendTelegram(
+      const topic = await createPassengerTopic(
         env,
-        `🚖 Passenger at pickup spot\n` +
-        `Booking: ${bookingId}` +
-        (terminal ? `\nTerminal: ${terminal}` : '')
+        bookingId,
+        terminal
+      );
+
+      await sendMessageToTopic(
+        env,
+        topic.message_thread_id,
+        `🚖 Passenger has arrived\n\n` +
+        `Booking: ${bookingId}\n` +
+        `Terminal: ${terminal || 'Unknown'}`
+
       );
     } catch (err) {
       console.error('Telegram delivery failed:', err);
@@ -253,8 +405,15 @@ async function handleDispatch(request, env, cors) {
 
   if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
     try {
-      await sendTelegram(
+      const topic = await createPassengerTopic(
         env,
+        bookingId,
+        terminal
+      );
+
+      await sendMessageToTopic(
+        env,
+        topic.message_thread_id,
         `🚨 CUSTOMER HAS ARRIVED - DISPATCH CAR\n` +
         `Booking: ${bookingId}` +
         (terminal ? `\nTerminal: ${terminal}` : '')
@@ -380,4 +539,51 @@ function jsonResponse(data, status, cors) {
       ...cors
     }
   });
+}
+
+async function createPassengerTopic(env, bookingId, terminal) {
+
+  const res = await fetch(
+    `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/createForumTopic`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        chat_id: env.CHAT_ID,
+        name: `BK ${bookingId} · ${terminal || 'Unknown'}`
+      })
+    }
+  );
+
+  const data = await res.json();
+
+  if (!data.ok) {
+    throw new Error(JSON.stringify(data));
+  }
+
+  return data.result;
+}
+
+async function sendMessageToTopic(env, threadId, text) {
+
+  const res = await fetch(
+    `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        chat_id: env.CHAT_ID,
+        message_thread_id: threadId,
+        text
+      })
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(await res.text());
+  }
 }
