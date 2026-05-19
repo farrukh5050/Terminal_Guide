@@ -7,6 +7,11 @@
    ROUTES PROVIDED
      GET  /api/booking/{bookingId}   → look up booking, return safe data
      POST /api/callback              → record callback / message request
+     POST /api/arrived               → passenger arrived at pickup spot
+     POST /api/dispatch              → passenger confirmed; office dispatches the car
+     POST /api/telegram-webhook      → operator replies inbound from Telegram
+     POST /api/chat/send             → passenger → Telegram topic (also stored in KV)
+     GET  /api/chat/messages?bookingId=…  → unified chat history for the browser
 
    ============================================================
    DEPLOYING (one-off setup)
@@ -86,56 +91,66 @@ async function handleRequest(request, env) {
 
   // POST /api/telegram-webhook — webhook for replying to passengers in the website.
   if (request.method === 'POST' && url.pathname === '/api/telegram-webhook') {
-    return handleTelegramWebhook(request,env, cors);
+    return handleTelegramWebhook(request, env, cors);
   }
 
-  // POST /api/chat/send to send messages to website
+  // POST /api/chat/send — passenger → Telegram topic
   if (request.method === 'POST' && url.pathname === '/api/chat/send') {
     return handleChatSend(request, env, cors);
   }
 
-  // GET /api/debug/messages — temporary debug route
-  if (request.method === 'GET' && url.pathname === '/api/debug/messages') {
-    return handleDebugMessages(request, env, cors);
+  // GET /api/chat/messages?bookingId=... — operator replies for the browser to poll
+  if (request.method === 'GET' && url.pathname === '/api/chat/messages') {
+    return handleChatMessages(request, env, cors);
   }
-
-  if (request.method === 'GET' && url.pathname === '/api/debug/keys') {
-  return handleDebugKeys(env, cors);
-}
 
   return jsonResponse({ error: 'Not found' }, 404, cors);
 }
 
-async function handleDebugKeys(env, cors) {
-  const list = await env.CHAT_MESSAGES.list();
+async function handleTelegramWebhook(request, env, cors) {
+  const update = await request.json();
 
-  return jsonResponse(
-    list.keys.map(k => k.name),
-    200,
-    cors
-  );
+  const message = update.message || update.edited_message;
+
+  if (!message || message.from?.is_bot) {
+    return jsonResponse({ok: true}, 200, cors)
+  }
+
+  // Telegram sends webhook updates for stickers, photos, voice notes, etc.
+  // The passenger UI only renders text, so silently drop the rest.
+  if (!message.text) {
+    return jsonResponse({ok: true}, 200, cors)
+  }
+
+  const threadId = message.message_thread_id;
+  if (!threadId) {
+    return jsonResponse({ok: true}, 200, cors)
+  }
+
+  // Telegram's `date` is in seconds; convert to ms so it sorts with passenger
+  // messages (which use Date.now()).
+  const timestamp = (message.date ? message.date * 1000 : Date.now());
+
+  await putChatMessage(env, threadId, timestamp, 'op', {
+    from: 'operator',
+    text: message.text,
+    timestamp
+  });
+
+  return jsonResponse({ ok: true }, 200, cors);
 }
 
-async function handleDebugMessages(request, env, cors) {
-  const url = new URL(request.url);
-
-  const threadId = url.searchParams.get('thread') || '36';
-
-  const key = `thread:${threadId}:messages`;
-
-  const data = await env.CHAT_MESSAGES.get(key);
-
-  return jsonResponse(
-    JSON.parse(data || '[]'),
-    200,
-    cors
-  );
-}
-
-
+/* ============================================================
+   Passenger chat — send + retrieve
+   Passenger POSTs a message; we forward it into the booking's
+   Telegram topic AND persist it in KV so the browser sees its own
+   message when it polls. Operator replies are stored by the
+   Telegram webhook above. Each message is written to its own KV
+   key (see messageKey) so concurrent passenger+operator writes
+   never trample each other.
+============================================================ */
 async function handleChatSend(request, env, cors) {
   let body;
-
   try {
     body = await request.json();
   } catch {
@@ -147,24 +162,19 @@ async function handleChatSend(request, env, cors) {
   if (!/^\d{8}$/.test(String(bookingId || ''))) {
     return jsonResponse({ error: 'Invalid booking ID' }, 400, cors);
   }
-
   if (!message || !String(message).trim()) {
     return jsonResponse({ error: 'Message is required' }, 400, cors);
   }
 
   const threadId = await getOrCreatePassengerThread(env, bookingId, terminal);
+  const trimmed = String(message).trim();
+  const timestamp = Date.now();
 
-  const key = `thread:${threadId}:messages`;
-
-  const existing = JSON.parse(await env.CHAT_MESSAGES.get(key) || '[]');
-
-  existing.push({
+  await putChatMessage(env, threadId, timestamp, 'px', {
     from: 'passenger',
-    text: String(message).trim(),
-    timestamp: Date.now()
+    text: trimmed,
+    timestamp
   });
-
-  await env.CHAT_MESSAGES.put(key, JSON.stringify(existing));
 
   await sendMessageToTopic(
     env,
@@ -172,63 +182,78 @@ async function handleChatSend(request, env, cors) {
     `💬 Passenger message\n\n` +
     `Booking: ${bookingId}\n` +
     `Terminal: ${terminal || 'Unknown'}\n\n` +
-    String(message).trim()
+    trimmed
   );
 
-  return jsonResponse({
-    ok: true,
-    threadId
-  }, 200, cors);
+  return jsonResponse({ ok: true, threadId }, 200, cors);
 }
 
-async function getOrCreatePassengerThread(env, bookingId, terminal) {
-  const key = `booking:${bookingId}:thread`;
+async function handleChatMessages(request, env, cors) {
+  const url = new URL(request.url);
+  const bookingId = url.searchParams.get('bookingId');
 
-  const existingThreadId = await env.CHAT_MESSAGES.get(key);
-
-  if (existingThreadId) {
-    return Number(existingThreadId);
+  if (!bookingId || !/^\d{8}$/.test(bookingId)) {
+    return jsonResponse({ error: 'Invalid booking ID' }, 400, cors);
   }
 
-  const topic = await createPassengerTopic(env, bookingId, terminal);
+  const threadId = await env.CHAT_MESSAGES.get(`booking:${bookingId}:thread`);
+  if (!threadId) {
+    return jsonResponse({ messages: [] }, 200, cors);
+  }
 
-  await env.CHAT_MESSAGES.put(key, String(topic.message_thread_id));
+  // Read both: the legacy single-blob key (for threads created before the
+  // per-message refactor) and the new per-message keys. New writes only go
+  // to per-message keys, so the legacy blob will only contain historical
+  // data — never new messages. Merging both keeps old conversations intact.
+  //
+  // The per-message data lives in each key's metadata (not the value), so
+  // a single list() returns every message inline — no N+1 gets per poll.
+  const [legacyBlob, list] = await Promise.all([
+    env.CHAT_MESSAGES.get(`thread:${threadId}:messages`),
+    env.CHAT_MESSAGES.list({ prefix: `thread:${threadId}:msg:` })
+  ]);
 
-  return topic.message_thread_id;
+  const legacy = legacyBlob ? JSON.parse(legacyBlob) : [];
+
+  // Per-message keys: prefer metadata (fast path — already returned by
+  // list()). Fall back to fetching the value for keys written before the
+  // metadata refactor, so old messages remain visible during the transition.
+  const fresh = await Promise.all(
+    list.keys.map(async k => {
+      if (k.metadata) return k.metadata;
+      const v = await env.CHAT_MESSAGES.get(k.name);
+      return v ? JSON.parse(v) : null;
+    })
+  );
+
+  const messages = [...legacy, ...fresh.filter(Boolean)]
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  return jsonResponse({ messages }, 200, cors);
 }
 
-async function handleTelegramWebhook(request, env, cors) {
-  const update = await request.json();
+/* Per-message KV key. Each message lives at its own key so concurrent
+   writers (passenger send + Telegram webhook) never touch the same blob,
+   eliminating the read-modify-write race that was dropping messages.
+   Timestamp goes first so the key prefix sorts roughly chronologically,
+   which is convenient when inspecting KV directly. */
+function messageKey(threadId, timestamp, source) {
+  const rand = crypto.randomUUID().split('-')[0];
+  return `thread:${threadId}:msg:${timestamp}-${source}-${rand}`;
+}
 
-  const message = update.message;
-
-  if (
-    message &&
-    message.message_thread_id &&
-    message.text &&
-    !message.from?.is_bot
-  ) {
-    const threadId = message.message_thread_id;
-
-    const key = `thread:${threadId}:messages`;
-
-    const existing = JSON.parse(
-      await env.CHAT_MESSAGES.get(key) || '[]'
-    );
-
-    existing.push({
-      from: 'operator',
-      text: message.text,
-      timestamp: Date.now()
-    });
-
-    await env.CHAT_MESSAGES.put(
-      key,
-      JSON.stringify(existing)
-    );
-  }
-
-  return jsonResponse({ ok: true }, 200, cors);
+/* Store a chat message. The payload goes in the key's METADATA (not the
+   value) so a single list() call returns every message inline, avoiding
+   the N+1 read pattern that was slowing down poll responses.
+   KV metadata caps out at 1024 bytes; chat messages in this app are short
+   enough that we don't need a truncation fallback, but if a future feature
+   sends long payloads, store the overflow in the value and check a flag. */
+async function putChatMessage(env, threadId, timestamp, source, payload) {
+  await env.CHAT_MESSAGES.put(
+    messageKey(threadId, timestamp, source),
+    '',
+    { metadata: payload }
+  );
 }
 
 /* ============================================================
@@ -354,7 +379,7 @@ async function handleArrival(request, env, cors) {
   // Forward to Telegram so the office sees the passenger is waiting.
   if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
     try {
-      const topic = await createPassengerTopic(
+      const threadId = await getOrCreatePassengerThread(
         env,
         bookingId,
         terminal
@@ -362,11 +387,10 @@ async function handleArrival(request, env, cors) {
 
       await sendMessageToTopic(
         env,
-        topic.message_thread_id,
+        threadId,
         `🚖 Passenger has arrived\n\n` +
         `Booking: ${bookingId}\n` +
         `Terminal: ${terminal || 'Unknown'}`
-
       );
     } catch (err) {
       console.error('Telegram delivery failed:', err);
@@ -405,7 +429,7 @@ async function handleDispatch(request, env, cors) {
 
   if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
     try {
-      const topic = await createPassengerTopic(
+      const threadId = await getOrCreatePassengerThread(
         env,
         bookingId,
         terminal
@@ -413,7 +437,7 @@ async function handleDispatch(request, env, cors) {
 
       await sendMessageToTopic(
         env,
-        topic.message_thread_id,
+        threadId,
         `🚨 CUSTOMER HAS ARRIVED - DISPATCH CAR\n` +
         `Booking: ${bookingId}` +
         (terminal ? `\nTerminal: ${terminal}` : '')
@@ -539,6 +563,20 @@ function jsonResponse(data, status, cors) {
       ...cors
     }
   });
+}
+
+// Per-booking topic deduplication. The mapping in KV is the source of truth:
+// without it, /api/arrived and /api/dispatch each call createForumTopic and
+// the operator ends up with two topics per passenger.
+async function getOrCreatePassengerThread(env, bookingId, terminal) {
+  const key = `booking:${bookingId}:thread`;
+
+  const existingThreadId = await env.CHAT_MESSAGES.get(key);
+  if (existingThreadId) return Number(existingThreadId);
+
+  const topic = await createPassengerTopic(env, bookingId, terminal);
+  await env.CHAT_MESSAGES.put(key, String(topic.message_thread_id));
+  return topic.message_thread_id;
 }
 
 async function createPassengerTopic(env, bookingId, terminal) {

@@ -223,6 +223,15 @@
             </svg>
             <span data-i18n="arrived.call_driver">Call office</span>
           </a>
+          <!-- Chat button: shown in booked mode (has a real booking ID). CSS hides it in browse mode. -->
+          <button class="btn btn--ghost btn--chat" id="arrived-chat-btn" type="button">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+            </svg>
+            <span data-i18n="arrived.chat">Chat</span>
+            <span class="btn__badge" id="chat-unread-badge" hidden aria-live="polite">0</span>
+          </button>
+          <!-- Callback button: only shown in browse mode (no booking → no chat thread). -->
           <button class="btn btn--ghost" id="arrived-callback-btn" type="button">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
@@ -342,6 +351,50 @@
           </div>
         </div>
       </form>
+    </dialog>
+
+    <!-- =================== CHAT DIALOG =================== -->
+    <dialog class="dialog dialog--chat" id="chat-dialog" aria-labelledby="chat-title">
+      <div class="dialog__form chat-dialog__form">
+        <header class="chat-dialog__header">
+          <div class="chat-dialog__avatar" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 18v-6a9 9 0 0118 0v6"/>
+              <path d="M21 19a2 2 0 01-2 2h-1v-7h3v5zM3 19a2 2 0 002 2h1v-7H3v5z"/>
+            </svg>
+          </div>
+          <div class="chat-dialog__heading">
+            <h2 class="chat-dialog__title" id="chat-title" data-i18n="chat.title">Office team</h2>
+            <p class="chat-dialog__status">
+              <span class="online-dot" aria-hidden="true"></span>
+              <span data-i18n="chat.online">Online · usually replies in minutes</span>
+            </p>
+          </div>
+          <button class="dialog__close" type="button" id="chat-dialog-close" data-i18n-attr="aria-label:dialog.close" aria-label="Close">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </header>
+
+        <div class="chat-messages" id="chat-messages"></div>
+
+        <form class="chat-form" id="chat-form">
+          <input
+            class="chat-input"
+            id="chat-input"
+            type="text"
+            data-i18n-placeholder="chat.placeholder"
+            placeholder="Message the office..."
+            autocomplete="off"
+          />
+          <button class="chat-send" type="submit" data-i18n-attr="aria-label:chat.send" aria-label="Send">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+            </svg>
+          </button>
+        </form>
+      </div>
     </dialog>
 
   </main>

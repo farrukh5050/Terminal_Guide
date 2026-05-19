@@ -137,7 +137,15 @@ const els = {
   dispatchForm:     $('dispatch-form'),
   dispatchCancel:   $('dispatch-cancel'),
   dispatchConfirm:  $('dispatch-confirm'),
-  dispatchError:    $('dispatch-error')
+  dispatchError:    $('dispatch-error'),
+  // Live chat (Telegram-backed)
+  arrivedChatBtn:    $('arrived-chat-btn'),
+  chatDialog:        $('chat-dialog'),
+  chatDialogClose:   $('chat-dialog-close'),
+  chatUnreadBadge:   $('chat-unread-badge'),
+  chatMessages:      $('chat-messages'),
+  chatForm:          $('chat-form'),
+  chatInput:         $('chat-input'),
 };
 
 /* ============================================================
@@ -601,6 +609,12 @@ function init() {
   els.dispatchCancel.addEventListener('click', closeDispatchDialog);
   els.dispatchForm.addEventListener('submit', confirmDispatch);
 
+  // Chat dialog
+  els.chatForm.addEventListener('submit', submitChatMessage);
+  els.arrivedChatBtn.addEventListener('click', openChatDialog);
+  els.chatDialogClose.addEventListener('click', closeChatDialog);
+  refreshChatEmptyLabel();
+
   // Browse-mode arrived screen: "I've arrived" → switch to with-booking flow
   if (els.arrivedILandedBtn) {
     els.arrivedILandedBtn.addEventListener('click', () => {
@@ -620,6 +634,7 @@ function init() {
   window.addEventListener('langchange', () => {
     renderPicker();
     updatePickerEyebrow();
+    refreshChatEmptyLabel();
     if (state.view === 'nav' && state.terminal) renderStep('forward');
     if (state.view === 'arrived' && state.terminal) renderArrived();
   });
@@ -665,6 +680,152 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+/* ============================================================
+   Live chat — polling, rendering, dialog, unread badge
+   ============================================================
+   The chat lives inside a modal dialog (#chat-dialog), so:
+     - Polling runs while the arrived view is shown (started/stopped
+       in showView), independent of whether the dialog is open.
+     - Operator replies that arrive while the dialog is closed bump
+       an unread count badge on the "Chat" button.
+     - Opening the dialog resets the badge to zero.
+============================================================ */
+let chatPollTimer = null;
+let lastSeenOperatorCount = null;  // null = uninitialised; set on first poll.
+
+function isChatDialogOpen() {
+  return els.chatDialog && els.chatDialog.hasAttribute('open');
+}
+
+function setChatUnread(count) {
+  if (count > 0) {
+    els.chatUnreadBadge.textContent = count > 99 ? '99+' : String(count);
+    els.chatUnreadBadge.hidden = false;
+  } else {
+    els.chatUnreadBadge.hidden = true;
+  }
+}
+
+function updateUnreadBadge(operatorCount) {
+  // First poll: silently accept the current state — we don't want to
+  // surface unread counts for history the passenger already saw inline.
+  if (lastSeenOperatorCount === null) {
+    lastSeenOperatorCount = operatorCount;
+    setChatUnread(0);
+    return;
+  }
+  if (isChatDialogOpen()) {
+    lastSeenOperatorCount = operatorCount;
+    setChatUnread(0);
+  } else {
+    setChatUnread(Math.max(0, operatorCount - lastSeenOperatorCount));
+  }
+}
+
+function renderChatMessages(messages) {
+  els.chatMessages.innerHTML = messages.map(msg => `
+    <div class="chat-message chat-message--${esc(msg.from)}">
+      <div class="chat-message__bubble">${esc(msg.text)}</div>
+    </div>
+  `).join('');
+
+  els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+
+  const operatorCount = messages.filter(m => m.from === 'operator').length;
+  updateUnreadBadge(operatorCount);
+}
+
+async function fetchChatMessages() {
+  if (!state.bookingId) return;
+
+  try {
+    const { messages } = await api.getChatMessages({
+      bookingId: state.bookingId
+    });
+
+    renderChatMessages(messages || []);
+  } catch (err) {
+    console.error('Chat fetch failed:', err);
+  }
+}
+
+function startChatPolling() {
+  stopChatPolling();
+  if (!state.bookingId) return;
+
+  // Reset the unread watermark — a fresh arrival to the view should not
+  // inherit a stale unread count from a previous session.
+  lastSeenOperatorCount = null;
+  setChatUnread(0);
+
+  fetchChatMessages();
+  chatPollTimer = setInterval(fetchChatMessages, 3000);
+}
+
+function stopChatPolling() {
+  if (chatPollTimer) {
+    clearInterval(chatPollTimer);
+    chatPollTimer = null;
+  }
+}
+
+async function submitChatMessage(e) {
+  e.preventDefault();
+
+  const message = els.chatInput.value.trim();
+  if (!message || !state.bookingId) return;
+
+  els.chatInput.value = '';
+
+  try {
+    await api.sendChat({
+      bookingId: state.bookingId,
+      terminal: state.terminal,
+      message
+    });
+
+    await fetchChatMessages();
+  } catch (err) {
+    console.error('Chat send failed:', err);
+  }
+}
+
+function openChatDialog() {
+  if (typeof els.chatDialog.showModal === 'function') {
+    els.chatDialog.showModal();
+  } else {
+    els.chatDialog.setAttribute('open', '');
+  }
+
+  // User is now looking at the full thread → clear unread state.
+  const operatorCount = els.chatMessages.querySelectorAll('.chat-message--operator').length;
+  lastSeenOperatorCount = operatorCount;
+  setChatUnread(0);
+
+  // Pull the latest in case the poll cycle is between ticks.
+  fetchChatMessages();
+
+  requestAnimationFrame(() => {
+    els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+    els.chatInput.focus();
+  });
+}
+
+function closeChatDialog() {
+  if (typeof els.chatDialog.close === 'function') {
+    els.chatDialog.close();
+  } else {
+    els.chatDialog.removeAttribute('open');
+  }
+}
+
+function refreshChatEmptyLabel() {
+  if (els.chatMessages) {
+    els.chatMessages.dataset.emptyLabel = t('chat.empty');
+  }
+}
+
 
 /* ============================================================
    StreetCars Manchester — Services
@@ -724,6 +885,24 @@ const api = {
     });
     if (!res.ok) throw new ApiError('Could not dispatch', 'server');
     return res.json();
+  },
+
+  async sendChat({bookingId, terminal, message}) {
+    const res = await fetch(`${API_BASE}/api/chat/send`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({bookingId, terminal, message})
+    });
+
+    if (!res.ok) throw new ApiError('Could not send message', 'server');
+    return res.json();
+  },
+
+  async getChatMessages({ bookingId }) {
+    const res = await fetch(`${API_BASE}/api/chat/messages?bookingId=${bookingId}`);
+
+    if (!res.ok) throw new ApiError('Could not load messages', 'server');
+    return res.json();
   }
 };
 
@@ -734,4 +913,12 @@ function showView(name) {
   Object.entries(els.views).forEach(([key, el]) => { el.hidden = (key !== name); });
   state.view = name;
   window.scrollTo({ top: 0 });
+
+  // Chat is tied to the arrived view: poll while it's visible, stop otherwise.
+  if (name === 'arrived' && state.bookingId) {
+    startChatPolling();
+  } else {
+    stopChatPolling();
+    if (els.chatDialog && els.chatDialog.hasAttribute('open')) closeChatDialog();
+  }
 }

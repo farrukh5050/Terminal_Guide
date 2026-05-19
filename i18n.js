@@ -80,12 +80,20 @@ const I18N = {
     'arrived.track': 'Track driver live',
     'arrived.call_driver': 'Call office',
     'arrived.callback': 'Callback',
+    'arrived.chat': 'Chat',
     'arrived.eta': 'Driver arriving shortly',
     'arrived.browse.message_1': 'This is the StreetCars pickup spot at Manchester Airport.',
     'arrived.browse.message_2_before': "Once you've landed,",
     'arrived.browse.call_us_link': 'call us on 0161 228 7878',
     'arrived.browse.message_2_after': "to book a ride and we'll bring you right back here.",
     'arrived.browse.i_landed': "I've arrived — find my driver",
+
+    // Live chat
+    'chat.title': 'Office team',
+    'chat.online': 'Online · usually replies in minutes',
+    'chat.empty': 'Say hi — our office team is here to help.',
+    'chat.placeholder': 'Message the office…',
+    'chat.send': 'Send message',
 
     // Dialog
     'dialog.title': 'Request a callback',
@@ -193,12 +201,20 @@ const I18N = {
     'arrived.track': 'Seguir al conductor en directo',
     'arrived.call_driver': 'Llamar a la oficina',
     'arrived.callback': 'Que me llamen',
+    'arrived.chat': 'Chat',
     'arrived.eta': 'El conductor llegará en breve',
     'arrived.browse.message_1': 'Este es el punto de recogida de StreetCars en el aeropuerto de Manchester.',
     'arrived.browse.message_2_before': 'Cuando hayas aterrizado,',
     'arrived.browse.call_us_link': 'llámanos al 0161 228 7878',
     'arrived.browse.message_2_after': 'para reservar un viaje y te traeremos justo aquí.',
     'arrived.browse.i_landed': 'He llegado — encontrar a mi conductor',
+
+    // Chat en directo
+    'chat.title': 'Equipo de oficina',
+    'chat.online': 'En línea · suele responder en minutos',
+    'chat.empty': 'Saluda — nuestro equipo está aquí para ayudarte.',
+    'chat.placeholder': 'Mensaje a la oficina…',
+    'chat.send': 'Enviar mensaje',
 
     'dialog.title': 'Pedir que te llamen',
     'dialog.subtitle': 'Te llamaremos enseguida.',
@@ -302,12 +318,20 @@ const I18N = {
     'arrived.track': 'تتبع السائق مباشرة',
     'arrived.call_driver': 'اتصل بالمكتب',
     'arrived.callback': 'معاودة الاتصال',
+    'arrived.chat': 'دردشة',
     'arrived.eta': 'السائق في الطريق',
     'arrived.browse.message_1': 'هذا هو مكان استلام StreetCars في مطار مانشستر.',
     'arrived.browse.message_2_before': 'بمجرد أن تهبط،',
     'arrived.browse.call_us_link': 'اتصل بنا على 7878 228 0161',
     'arrived.browse.message_2_after': 'لحجز رحلة وسنعيدك إلى هنا.',
     'arrived.browse.i_landed': 'لقد وصلت — ابحث عن سائقي',
+
+    // الدردشة المباشرة
+    'chat.title': 'فريق المكتب',
+    'chat.online': 'متصل · يرد عادةً خلال دقائق',
+    'chat.empty': 'ألقِ التحية — فريق المكتب هنا للمساعدة.',
+    'chat.placeholder': 'رسالة إلى المكتب…',
+    'chat.send': 'إرسال الرسالة',
 
     'dialog.title': 'اطلب معاودة الاتصال',
     'dialog.subtitle': 'سنعاود الاتصال بك على الفور.',
@@ -411,12 +435,20 @@ const I18N = {
     'arrived.track': '实时跟踪司机',
     'arrived.call_driver': '致电办公室',
     'arrived.callback': '回电',
+    'arrived.chat': '聊天',
     'arrived.eta': '司机即将到达',
     'arrived.browse.message_1': '这是曼彻斯特机场的 StreetCars 接送地点。',
     'arrived.browse.message_2_before': '当您落地后，',
     'arrived.browse.call_us_link': '请致电 0161 228 7878',
     'arrived.browse.message_2_after': '预订车辆，我们会把您带回这里。',
     'arrived.browse.i_landed': '我已到达 — 找到我的司机',
+
+    // 实时聊天
+    'chat.title': '办公室团队',
+    'chat.online': '在线 · 通常几分钟内回复',
+    'chat.empty': '打个招呼 — 我们的办公室团队随时为您服务。',
+    'chat.placeholder': '给办公室发消息…',
+    'chat.send': '发送消息',
 
     'dialog.title': '请求回电',
     'dialog.subtitle': '我们会立即回电给您。',
@@ -520,12 +552,20 @@ const I18N = {
     'arrived.track': '即時追蹤司機',
     'arrived.call_driver': '致電辦公室',
     'arrived.callback': '回電',
+    'arrived.chat': '對話',
     'arrived.eta': '司機即將到達',
     'arrived.browse.message_1': '呢個係曼徹斯特機場嘅 StreetCars 接送地點。',
     'arrived.browse.message_2_before': '當您落咗機之後，',
     'arrived.browse.call_us_link': '請致電 0161 228 7878',
     'arrived.browse.message_2_after': '預訂車輛，我哋會帶您返嚟呢度。',
     'arrived.browse.i_landed': '我已到達 — 搵我嘅司機',
+
+    // 即時對話
+    'chat.title': '辦公室團隊',
+    'chat.online': '在線 · 通常幾分鐘內回覆',
+    'chat.empty': '打個招呼 — 我哋嘅辦公室團隊隨時幫您。',
+    'chat.placeholder': '畀辦公室發訊息…',
+    'chat.send': '發送訊息',
 
     'dialog.title': '要求回電',
     'dialog.subtitle': '我哋會即刻回電畀您。',

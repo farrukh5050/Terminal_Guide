@@ -826,6 +826,236 @@ body {
 }
 
 /* ============================================================
+   Live chat — message thread & input form
+   Rendered inside #chat-dialog. .dialog--chat handles the modal
+   chrome; rules here cover the bubbles and composer.
+============================================================ */
+.chat-messages {
+  padding: 16px;
+  background: var(--bg-warm, #ECE5D5);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+}
+
+.chat-messages:empty::before {
+  content: attr(data-empty-label);
+  margin: auto;
+  max-width: 240px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-muted);
+  line-height: 1.5;
+}
+
+.chat-message {
+  display: flex;
+  max-width: 100%;
+  animation: chatMsgIn 180ms var(--ease);
+}
+
+.chat-message--passenger { justify-content: flex-end; }
+.chat-message--operator  { justify-content: flex-start; }
+
+@keyframes chatMsgIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.chat-message__bubble {
+  max-width: 78%;
+  padding: 9px 13px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  box-shadow: 0 1px 2px rgba(20, 24, 31, 0.04);
+}
+
+.chat-message--passenger .chat-message__bubble {
+  background: var(--ink, #14181F);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message--operator .chat-message__bubble {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: stretch;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.chat-input {
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: none;
+  font-family: var(--font-body);
+  font-size: 15px;
+  color: var(--ink);
+}
+
+.chat-input:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(20, 24, 31, 0.08);
+}
+
+.chat-input::placeholder { color: var(--ink-muted); }
+
+.chat-send {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  background: var(--ink);
+  color: #fff;
+  transition: background 120ms var(--ease);
+}
+
+.chat-send svg { transition: transform 120ms var(--ease); }
+.chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+.chat-send:hover:not(:disabled) { background: #000; }
+.chat-send:hover:not(:disabled) svg { transform: translate(2px, -2px); }
+
+/* ============================================================
+   Chat dialog — modal wrapping the chat thread
+============================================================ */
+.dialog--chat {
+  max-width: 480px;
+  width: calc(100% - 16px);
+}
+
+/* The chat dialog reuses .dialog__form for entrance animation, but
+   needs a flex column layout with no padding — header/messages/form
+   provide their own spacing. */
+.chat-dialog__form {
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: min(640px, calc(100dvh - 32px));
+  background: var(--surface);
+}
+
+.chat-dialog__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.chat-dialog__avatar {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--ink) 0%, #2A3140 100%);
+  color: #fff;
+  display: grid;
+  place-items: center;
+}
+
+.chat-dialog__heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.chat-dialog__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+  margin: 0;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.chat-dialog__status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin: 2px 0 0;
+}
+
+.online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 3px rgba(45, 95, 63, 0.18);
+  flex-shrink: 0;
+  animation: onlinePulse 2.4s ease-in-out infinite;
+}
+
+@keyframes onlinePulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(45, 95, 63, 0.18); }
+  50%      { box-shadow: 0 0 0 6px rgba(45, 95, 63, 0.06); }
+}
+
+/* The shared .dialog__close is absolutely positioned; in the chat
+   header it sits inline at the end of the row. */
+.chat-dialog__header .dialog__close {
+  position: static;
+  flex-shrink: 0;
+}
+
+/* Make the message list fill the available dialog space. */
+.dialog--chat .chat-messages {
+  flex: 1;
+  min-height: 260px;
+  max-height: none;
+}
+
+/* ============================================================
+   Arrived-view button visibility by mode
+   - Booked mode: show Chat, hide Callback
+   - Browse mode: show Callback, hide Chat
+============================================================ */
+.view--arrived.mode-browse #arrived-chat-btn { display: none; }
+.view--arrived:not(.mode-browse) #arrived-callback-btn { display: none; }
+
+/* Chat button + unread badge */
+.btn--chat { position: relative; }
+
+.btn__badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: middle;
+  animation: badgePop 220ms var(--ease);
+}
+
+.btn__badge[hidden] { display: none; }
+
+@keyframes badgePop {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ============================================================
    Language picker (flag chips on the entry screen)
 ============================================================ */
 .lang-picker {
