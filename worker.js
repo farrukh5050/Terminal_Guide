@@ -197,32 +197,14 @@ async function handleChatMessages(request, env, cors) {
     return jsonResponse({ messages: [] }, 200, cors);
   }
 
-  // Read both: the legacy single-blob key (for threads created before the
-  // per-message refactor) and the new per-message keys. New writes only go
-  // to per-message keys, so the legacy blob will only contain historical
-  // data — never new messages. Merging both keeps old conversations intact.
-  //
-  // The per-message data lives in each key's metadata (not the value), so
-  // a single list() returns every message inline — no N+1 gets per poll.
-  const [legacyBlob, list] = await Promise.all([
-    env.CHAT_MESSAGES.get(`thread:${threadId}:messages`),
-    env.CHAT_MESSAGES.list({ prefix: `thread:${threadId}:msg:` })
-  ]);
+  // Each message lives at its own key, with the payload in the key's metadata
+  // (not the value), so a single list() returns every message inline — no
+  // N+1 gets per poll.
+  const list = await env.CHAT_MESSAGES.list({ prefix: `thread:${threadId}:msg:` });
 
-  const legacy = legacyBlob ? JSON.parse(legacyBlob) : [];
-
-  // Per-message keys: prefer metadata (fast path — already returned by
-  // list()). Fall back to fetching the value for keys written before the
-  // metadata refactor, so old messages remain visible during the transition.
-  const fresh = await Promise.all(
-    list.keys.map(async k => {
-      if (k.metadata) return k.metadata;
-      const v = await env.CHAT_MESSAGES.get(k.name);
-      return v ? JSON.parse(v) : null;
-    })
-  );
-
-  const messages = [...legacy, ...fresh.filter(Boolean)]
+  const messages = list.keys
+    .map(k => k.metadata)
+    .filter(Boolean)
     .sort((a, b) => a.timestamp - b.timestamp);
 
   return jsonResponse({ messages }, 200, cors);
@@ -307,6 +289,7 @@ const driverId = bookingStatus.dispatchedBooking?.driverId ?? null;
 const vehicleId = bookingStatus.dispatchedBooking?.vehicleId ?? null;
 
 let driverDetails = null;
+let vehicleDetails = null;
 
 if (driverId) {
   const driverRes = await fetch(
@@ -323,13 +306,28 @@ if (driverId) {
   }
 }
 
+if (vehicleId) {
+  const vehicleRes = await fetch(
+    `https://autocab-api.azure-api.net/booking/v1/vehicles/${vehicleId}`,
+    {
+      headers: {
+        'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY
+      }
+    }
+  );
+
+  if (vehicleRes.ok) {
+    vehicleDetails = await vehicleRes.json();
+  }
+}
+
 const driver = driverId && driverDetails
   ? {
       driverId,
       vehicleId,
-      name: `${driverDetails.forename || ''} ${driverDetails.surname || ''}`.trim(),
-      car: 'Ford Fiesta',
-      plate: 'ABC123',
+      name: driverDetails.fullName || `${driverDetails.forename || ''} ${driverDetails.surname || ''}`.trim(),
+      car: [vehicleDetails?.make, vehicleDetails?.model].filter(Boolean).join(' '),
+      plate: vehicleDetails?.registration ?? null
     }
   : {
       status: 'pending',
