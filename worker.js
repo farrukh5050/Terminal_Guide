@@ -176,14 +176,10 @@ async function handleChatSend(request, env, cors) {
     timestamp
   });
 
-  await sendMessageToTopic(
-    env,
-    threadId,
-    `💬 Passenger message\n\n` +
-    `Booking: ${bookingId}\n` +
-    `Terminal: ${terminal || 'Unknown'}\n\n` +
-    trimmed
-  );
+  // The topic title already carries booking + terminal, so the chat body
+  // can just be the message itself. The 💬 prefix distinguishes passenger
+  // chat from system notifications (arrival, dispatch) in the same topic.
+  await sendMessageToTopic(env, threadId, `💬 ${trimmed}`);
 
   return jsonResponse({ ok: true, threadId }, 200, cors);
 }
@@ -568,15 +564,60 @@ function jsonResponse(data, status, cors) {
 // Per-booking topic deduplication. The mapping in KV is the source of truth:
 // without it, /api/arrived and /api/dispatch each call createForumTopic and
 // the operator ends up with two topics per passenger.
+//
+// Topic naming: dispatch fires before the passenger picks a terminal, so the
+// topic is often created as "BK X · Unknown". Once the terminal is known
+// (via /api/arrived or any /api/chat/send), we rename the topic so the
+// operator's sidebar shows "BK X · T2" instead.
 async function getOrCreatePassengerThread(env, bookingId, terminal) {
-  const key = `booking:${bookingId}:thread`;
+  const idKey   = `booking:${bookingId}:thread`;
+  const nameKey = `booking:${bookingId}:thread:name`;
+  const desiredName = topicName(bookingId, terminal);
 
-  const existingThreadId = await env.CHAT_MESSAGES.get(key);
-  if (existingThreadId) return Number(existingThreadId);
+  const existingThreadId = await env.CHAT_MESSAGES.get(idKey);
+
+  if (existingThreadId) {
+    // Topic exists. If the terminal is now known and the title is stale,
+    // rename it. Skip when terminal is null — no point overwriting a real
+    // terminal name with "Unknown".
+    if (terminal) {
+      const storedName = await env.CHAT_MESSAGES.get(nameKey);
+      if (storedName !== desiredName) {
+        await editForumTopicName(env, Number(existingThreadId), desiredName);
+        await env.CHAT_MESSAGES.put(nameKey, desiredName);
+      }
+    }
+    return Number(existingThreadId);
+  }
 
   const topic = await createPassengerTopic(env, bookingId, terminal);
-  await env.CHAT_MESSAGES.put(key, String(topic.message_thread_id));
+  await env.CHAT_MESSAGES.put(idKey, String(topic.message_thread_id));
+  await env.CHAT_MESSAGES.put(nameKey, desiredName);
   return topic.message_thread_id;
+}
+
+function topicName(bookingId, terminal) {
+  return `BK ${bookingId} · ${terminal || 'Unknown'}`;
+}
+
+async function editForumTopicName(env, threadId, name) {
+  const res = await fetch(
+    `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/editForumTopic`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: env.CHAT_ID,
+        message_thread_id: threadId,
+        name
+      })
+    }
+  );
+  if (!res.ok) {
+    // Non-fatal: log and carry on with the stale title rather than block
+    // the caller (which is usually serving a passenger request).
+    console.error('editForumTopic failed:', await res.text());
+  }
 }
 
 async function createPassengerTopic(env, bookingId, terminal) {
@@ -590,7 +631,7 @@ async function createPassengerTopic(env, bookingId, terminal) {
       },
       body: JSON.stringify({
         chat_id: env.CHAT_ID,
-        name: `BK ${bookingId} · ${terminal || 'Unknown'}`
+        name: topicName(bookingId, terminal)
       })
     }
   );

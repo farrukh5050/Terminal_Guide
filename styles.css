@@ -881,6 +881,15 @@ body {
   border-bottom-right-radius: 4px;
 }
 
+/* Optimistic bubbles (sent client-side, not yet echoed by the server)
+   fade slightly so the user knows the round-trip hasn't completed. */
+.chat-message--pending .chat-message__bubble { opacity: 0.6; }
+
+.chat-message--failed .chat-message__bubble {
+  background: var(--danger);
+  color: #fff;
+}
+
 .chat-message--operator .chat-message__bubble {
   background: var(--surface);
   color: var(--ink);

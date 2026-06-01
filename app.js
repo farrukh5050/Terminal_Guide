@@ -693,6 +693,9 @@ document.addEventListener('DOMContentLoaded', init);
 ============================================================ */
 let chatPollTimer = null;
 let lastSeenOperatorCount = null;  // null = uninitialised; set on first poll.
+let serverMessages = [];           // last known state from /api/chat/messages
+let pendingMessages = [];          // local-only, not yet echoed back by server
+let lastRenderedFingerprint = '';  // skip DOM rewrites when nothing changed
 
 function isChatDialogOpen() {
   return els.chatDialog && els.chatDialog.hasAttribute('open');
@@ -723,17 +726,64 @@ function updateUnreadBadge(operatorCount) {
   }
 }
 
-function renderChatMessages(messages) {
-  els.chatMessages.innerHTML = messages.map(msg => `
-    <div class="chat-message chat-message--${esc(msg.from)}">
-      <div class="chat-message__bubble">${esc(msg.text)}</div>
-    </div>
-  `).join('');
+/* Render the union of server-confirmed messages and any local pending ones.
+   Pending bubbles get a faded look via the `.chat-message--pending` class.
+   Skips the DOM rewrite entirely when the visible state is unchanged, so
+   the 1s poll loop doesn't blink the chat every tick. */
+function renderChatThread() {
+  const all = [...serverMessages, ...pendingMessages]
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const fingerprint = all
+    .map(m => `${m.timestamp}|${m.from}|${m.pending ? 1 : 0}|${m.failed ? 1 : 0}|${m.text}`)
+    .join('\n');
+
+  // Unread badge depends on serverMessages even when nothing visible changed
+  // (e.g. dialog state flips between open/closed), so update it first.
+  const operatorCount = serverMessages.filter(m => m.from === 'operator').length;
+  updateUnreadBadge(operatorCount);
+
+  if (fingerprint === lastRenderedFingerprint) return;
+  lastRenderedFingerprint = fingerprint;
+
+  els.chatMessages.innerHTML = all.map(msg => {
+    const pending = msg.pending ? ' chat-message--pending' : '';
+    const failed  = msg.failed  ? ' chat-message--failed'  : '';
+    return `
+      <div class="chat-message chat-message--${esc(msg.from)}${pending}${failed}">
+        <div class="chat-message__bubble">${esc(msg.text)}</div>
+      </div>
+    `;
+  }).join('');
 
   els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+}
 
-  const operatorCount = messages.filter(m => m.from === 'operator').length;
-  updateUnreadBadge(operatorCount);
+/* Called by the poll. Replaces server state, then drops any pending entries
+   that have now made it into the server's response (matched 1:1 by sender +
+   text within a generous timestamp window — KV propagation can take a few
+   seconds, but rarely more). Greedy matching with a `claimed` set prevents
+   two pendings from collapsing onto the same server message when the
+   passenger sends the same text twice in quick succession. */
+function renderChatMessages(messages) {
+  serverMessages = messages;
+
+  const claimed = new Set();
+  pendingMessages = pendingMessages.filter(p => {
+    const matchIdx = messages.findIndex((s, i) =>
+      !claimed.has(i) &&
+      s.from === p.from &&
+      s.text === p.text &&
+      Math.abs(s.timestamp - p.timestamp) < 60000
+    );
+    if (matchIdx >= 0) {
+      claimed.add(matchIdx);
+      return false;
+    }
+    return true;
+  });
+
+  renderChatThread();
 }
 
 async function fetchChatMessages() {
@@ -754,9 +804,12 @@ function startChatPolling() {
   stopChatPolling();
   if (!state.bookingId) return;
 
-  // Reset the unread watermark — a fresh arrival to the view should not
-  // inherit a stale unread count from a previous session.
+  // Reset state — a fresh arrival should not inherit anything from a
+  // previous session.
   lastSeenOperatorCount = null;
+  serverMessages = [];
+  pendingMessages = [];
+  lastRenderedFingerprint = '';
   setChatUnread(0);
 
   fetchChatMessages();
@@ -773,21 +826,34 @@ function stopChatPolling() {
 async function submitChatMessage(e) {
   e.preventDefault();
 
-  const message = els.chatInput.value.trim();
-  if (!message || !state.bookingId) return;
+  const text = els.chatInput.value.trim();
+  if (!text || !state.bookingId) return;
 
+  // Optimistic render — the bubble shows instantly. The next poll that sees
+  // this message echoed back from the server will dedupe it out of pending.
+  const optimistic = {
+    from: 'passenger',
+    text,
+    timestamp: Date.now(),
+    pending: true
+  };
+  pendingMessages.push(optimistic);
   els.chatInput.value = '';
+  renderChatThread();
 
   try {
     await api.sendChat({
       bookingId: state.bookingId,
       terminal: state.terminal,
-      message
+      message: text
     });
-
-    await fetchChatMessages();
+    // Don't await a fresh fetch here — KV is eventually consistent, so an
+    // immediate poll often returns stale state. The 1s interval picks it up.
   } catch (err) {
     console.error('Chat send failed:', err);
+    optimistic.pending = false;
+    optimistic.failed = true;
+    renderChatThread();
   }
 }
 
