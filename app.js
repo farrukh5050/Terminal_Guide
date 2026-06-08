@@ -709,6 +709,35 @@ function isChatDialogOpen() {
   return els.chatDialog && els.chatDialog.hasAttribute('open');
 }
 
+/* A passenger with a real booking chats on their booking thread. Anyone
+   without one (browse mode, or just opening chat from the footer) gets a
+   stable anonymous guest ID, persisted in localStorage so their conversation
+   — and the operator's replies — survive a page reload. */
+function getGuestId() {
+  try {
+    let id = localStorage.getItem('streetcars.guestId');
+    if (!id) {
+      id = (crypto.randomUUID && crypto.randomUUID()) ||
+           ('g-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+      localStorage.setItem('streetcars.guestId', id);
+    }
+    return id;
+  } catch {
+    // localStorage blocked (private mode) — fall back to a per-session id so
+    // chat still works until the tab closes.
+    if (!getGuestId._memo) {
+      getGuestId._memo = 'g-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+    }
+    return getGuestId._memo;
+  }
+}
+
+/* The identifier the chat API should use right now: the booking if we have
+   one, otherwise the guest token. */
+function chatParams() {
+  return state.bookingId ? { bookingId: state.bookingId } : { guestId: getGuestId() };
+}
+
 function setChatUnread(count) {
   const show = count > 0;
   const text = count > 99 ? '99+' : String(count);
@@ -798,13 +827,8 @@ function renderChatMessages(messages) {
 }
 
 async function fetchChatMessages() {
-  if (!state.bookingId) return;
-
   try {
-    const { messages } = await api.getChatMessages({
-      bookingId: state.bookingId
-    });
-
+    const { messages } = await api.getChatMessages(chatParams());
     renderChatMessages(messages || []);
   } catch (err) {
     console.error('Chat fetch failed:', err);
@@ -813,7 +837,6 @@ async function fetchChatMessages() {
 
 function startChatPolling() {
   stopChatPolling();
-  if (!state.bookingId) return;
 
   // Reset state — a fresh arrival should not inherit anything from a
   // previous session.
@@ -838,7 +861,7 @@ async function submitChatMessage(e) {
   e.preventDefault();
 
   const text = els.chatInput.value.trim();
-  if (!text || !state.bookingId) return;
+  if (!text) return;
 
   // Optimistic render — the bubble shows instantly. The next poll that sees
   // this message echoed back from the server will dedupe it out of pending.
@@ -854,7 +877,7 @@ async function submitChatMessage(e) {
 
   try {
     await api.sendChat({
-      bookingId: state.bookingId,
+      ...chatParams(),
       terminal: state.terminal,
       message: text
     });
@@ -876,9 +899,9 @@ function openChatDialog() {
   }
 
   // The footer can open chat from any view, so polling may not be running
-  // yet (it normally starts on the arrived view). Kick it off here if we
-  // have a booking and aren't already polling.
-  if (state.bookingId && !chatPollTimer) startChatPolling();
+  // yet (it normally starts on the arrived view). Kick it off here if it
+  // isn't already — works for both booked passengers and guests.
+  if (!chatPollTimer) startChatPolling();
 
   // User is now looking at the full thread → clear unread state.
   const operatorCount = els.chatMessages.querySelectorAll('.chat-message--operator').length;
@@ -969,19 +992,22 @@ const api = {
     return res.json();
   },
 
-  async sendChat({bookingId, terminal, message}) {
+  async sendChat({ bookingId, guestId, terminal, message }) {
     const res = await fetch(`${API_BASE}/api/chat/send`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({bookingId, terminal, message})
+      body: JSON.stringify({ bookingId, guestId, terminal, message })
     });
 
     if (!res.ok) throw new ApiError('Could not send message', 'server');
     return res.json();
   },
 
-  async getChatMessages({ bookingId }) {
-    const res = await fetch(`${API_BASE}/api/chat/messages?bookingId=${bookingId}`);
+  async getChatMessages({ bookingId, guestId }) {
+    const params = new URLSearchParams();
+    if (bookingId) params.set('bookingId', bookingId);
+    else if (guestId) params.set('guestId', guestId);
+    const res = await fetch(`${API_BASE}/api/chat/messages?${params.toString()}`);
 
     if (!res.ok) throw new ApiError('Could not load messages', 'server');
     return res.json();

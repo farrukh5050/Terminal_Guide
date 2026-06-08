@@ -157,16 +157,17 @@ async function handleChatSend(request, env, cors) {
     return jsonResponse({ error: 'Invalid request' }, 400, cors);
   }
 
-  const { bookingId, terminal, message } = body || {};
+  const { bookingId, guestId, terminal, message } = body || {};
 
-  if (!/^\d{8}$/.test(String(bookingId || ''))) {
-    return jsonResponse({ error: 'Invalid booking ID' }, 400, cors);
+  const conv = resolveConversation(bookingId, guestId);
+  if (!conv) {
+    return jsonResponse({ error: 'Invalid conversation' }, 400, cors);
   }
   if (!message || !String(message).trim()) {
     return jsonResponse({ error: 'Message is required' }, 400, cors);
   }
 
-  const threadId = await getOrCreatePassengerThread(env, bookingId, terminal);
+  const threadId = await getOrCreateThread(env, conv, terminal);
   const trimmed = String(message).trim();
   const timestamp = Date.now();
 
@@ -186,13 +187,16 @@ async function handleChatSend(request, env, cors) {
 
 async function handleChatMessages(request, env, cors) {
   const url = new URL(request.url);
-  const bookingId = url.searchParams.get('bookingId');
+  const conv = resolveConversation(
+    url.searchParams.get('bookingId'),
+    url.searchParams.get('guestId')
+  );
 
-  if (!bookingId || !/^\d{8}$/.test(bookingId)) {
-    return jsonResponse({ error: 'Invalid booking ID' }, 400, cors);
+  if (!conv) {
+    return jsonResponse({ error: 'Invalid conversation' }, 400, cors);
   }
 
-  const threadId = await env.CHAT_MESSAGES.get(`booking:${bookingId}:thread`);
+  const threadId = await env.CHAT_MESSAGES.get(`${conv.key}:thread`);
   if (!threadId) {
     return jsonResponse({ messages: [] }, 200, cors);
   }
@@ -567,18 +571,52 @@ function jsonResponse(data, status, cors) {
 // topic is often created as "BK X · Unknown". Once the terminal is known
 // (via /api/arrived or any /api/chat/send), we rename the topic so the
 // operator's sidebar shows "BK X · T2" instead.
+/* Resolve a conversation identity from request params. A real 8-digit
+   booking ID takes precedence; otherwise we accept an opaque guest token
+   (generated and persisted client-side) so passengers without a booking
+   can still chat. Returns null if neither is valid. */
+function resolveConversation(bookingId, guestId) {
+  if (bookingId != null && bookingId !== '') {
+    if (!/^\d{8}$/.test(String(bookingId))) return null;
+    return { kind: 'booking', key: `booking:${bookingId}`, bookingId: String(bookingId) };
+  }
+  if (guestId != null && guestId !== '') {
+    // This value becomes part of a KV key and a Telegram topic name, so
+    // keep it to a strict opaque-token shape — never arbitrary text.
+    if (!/^[A-Za-z0-9-]{8,64}$/.test(String(guestId))) return null;
+    return { kind: 'guest', key: `guest:${guestId}`, guestId: String(guestId) };
+  }
+  return null;
+}
+
+// Booking-keyed wrapper, kept for the arrival/dispatch callers.
 async function getOrCreatePassengerThread(env, bookingId, terminal) {
-  const idKey   = `booking:${bookingId}:thread`;
-  const nameKey = `booking:${bookingId}:thread:name`;
-  const desiredName = topicName(bookingId, terminal);
+  return getOrCreateThread(
+    env,
+    { kind: 'booking', key: `booking:${bookingId}`, bookingId: String(bookingId) },
+    terminal
+  );
+}
+
+// Conversation → Telegram topic deduplication. The mapping in KV is the
+// source of truth: without it, repeat calls would each call createForumTopic
+// and the operator would end up with two topics per passenger/guest.
+//
+// Booking topics are created before the terminal is known ("BK X · Unknown")
+// and renamed once it is. Guest topics keep their name for life.
+async function getOrCreateThread(env, conv, terminal) {
+  const idKey   = `${conv.key}:thread`;
+  const nameKey = `${conv.key}:thread:name`;
+  const desiredName = conv.kind === 'booking'
+    ? topicName(conv.bookingId, terminal)
+    : guestTopicName(conv.guestId);
 
   const existingThreadId = await env.CHAT_MESSAGES.get(idKey);
 
   if (existingThreadId) {
-    // Topic exists. If the terminal is now known and the title is stale,
-    // rename it. Skip when terminal is null — no point overwriting a real
-    // terminal name with "Unknown".
-    if (terminal) {
+    // Only bookings rename (when the terminal becomes known). Skip for guests,
+    // and when terminal is null — no point overwriting a real name with "Unknown".
+    if (conv.kind === 'booking' && terminal) {
       const storedName = await env.CHAT_MESSAGES.get(nameKey);
       if (storedName !== desiredName) {
         await editForumTopicName(env, Number(existingThreadId), desiredName);
@@ -588,7 +626,7 @@ async function getOrCreatePassengerThread(env, bookingId, terminal) {
     return Number(existingThreadId);
   }
 
-  const topic = await createPassengerTopic(env, bookingId, terminal);
+  const topic = await createForumTopic(env, desiredName);
   await env.CHAT_MESSAGES.put(idKey, String(topic.message_thread_id));
   await env.CHAT_MESSAGES.put(nameKey, desiredName);
   return topic.message_thread_id;
@@ -596,6 +634,12 @@ async function getOrCreatePassengerThread(env, bookingId, terminal) {
 
 function topicName(bookingId, terminal) {
   return `BK ${bookingId} · ${terminal || 'Unknown'}`;
+}
+
+// Guests have no booking, so the topic is labelled with a short slice of
+// their opaque ID — enough for operators to tell guest threads apart.
+function guestTopicName(guestId) {
+  return `Guest ${String(guestId).slice(0, 8)}`;
 }
 
 async function editForumTopicName(env, threadId, name) {
@@ -618,7 +662,7 @@ async function editForumTopicName(env, threadId, name) {
   }
 }
 
-async function createPassengerTopic(env, bookingId, terminal) {
+async function createForumTopic(env, name) {
 
   const res = await fetch(
     `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/createForumTopic`,
@@ -629,7 +673,7 @@ async function createPassengerTopic(env, bookingId, terminal) {
       },
       body: JSON.stringify({
         chat_id: env.CHAT_ID,
-        name: topicName(bookingId, terminal)
+        name
       })
     }
   );
