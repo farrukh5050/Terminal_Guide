@@ -616,13 +616,6 @@ body {
 .driver-card__name { font-weight: 500; font-size: 16px; margin: 0 0 2px; }
 .driver-card__vehicle { font-size: 13px; color: var(--ink-muted); margin: 0; }
 
-.arrived-actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
 .arrived-eta {
   text-align: center;
   font-size: 13px;
@@ -825,7 +818,6 @@ body {
    visible so callers can still reach the office.
 ============================================================ */
 .view--arrived.mode-browse .driver-card,
-.view--arrived.mode-browse .arrived-actions,
 .view--arrived.mode-browse .arrived-eta,
 .view--arrived.mode-browse #track-btn { display: none; }
 
@@ -1084,17 +1076,7 @@ body {
   max-height: none;
 }
 
-/* ============================================================
-   Arrived-view button visibility by mode
-   - Booked mode: show Chat, hide Callback
-   - Browse mode: show Callback, hide Chat
-============================================================ */
-.view--arrived.mode-browse #arrived-chat-btn { display: none; }
-.view--arrived:not(.mode-browse) #arrived-callback-btn { display: none; }
-
-/* Chat button + unread badge */
-.btn--chat { position: relative; }
-
+/* Chat unread badge (used by the persistent footer's Live chat button) */
 .btn__badge {
   display: inline-grid;
   place-items: center;

@@ -112,8 +112,6 @@ const els = {
   driverName:     $('driver-name'),
   driverVehicle:  $('driver-vehicle'),
   trackBtn:       $('track-btn'),
-  arrivedCallBtn: $('arrived-call-btn'),
-  arrivedCallbackBtn: $('arrived-callback-btn'),
   // Dialog
   dialog:             $('callback-dialog'),
   dialogForm:         $('callback-form'),
@@ -139,10 +137,8 @@ const els = {
   dispatchConfirm:  $('dispatch-confirm'),
   dispatchError:    $('dispatch-error'),
   // Live chat (Telegram-backed)
-  arrivedChatBtn:    $('arrived-chat-btn'),
   chatDialog:        $('chat-dialog'),
   chatDialogClose:   $('chat-dialog-close'),
-  chatUnreadBadge:   $('chat-unread-badge'),
   chatMessages:      $('chat-messages'),
   chatForm:          $('chat-form'),
   chatInput:         $('chat-input'),
@@ -379,17 +375,12 @@ function renderArrived() {
     els.driverName.textContent = booking.message || 'Driver will be dispatched soon';
     els.driverVehicle.textContent = '';
     els.driverAvatar.textContent = '…';
-    els.arrivedCallBtn.href = 'tel:+441617400000'
   } else {
     els.driverName.textContent = booking.name || t('arrived.your_driver');
     els.driverVehicle.textContent = booking.car && booking.plate
       ? `${booking.car} · ${booking.plate}`
       : '';
     els.driverAvatar.textContent = booking.name ? initials(booking.name) : '?';
-
-  if (booking.phone) {
-    els.arrivedCallBtn.href = `tel:${booking.phone}`;
-  }
   }
 
   // Live tracking link from Autocab
@@ -602,7 +593,6 @@ function init() {
   els.backBtn.addEventListener('click', prevStep);
   els.nextBtn.addEventListener('click', nextStep);
   els.callbackBtn.addEventListener('click', openDialog);
-  els.arrivedCallbackBtn.addEventListener('click', openDialog);
 
   els.dialogClose.addEventListener('click', closeDialog);
   els.dialogCancel.addEventListener('click', closeDialog);
@@ -615,7 +605,6 @@ function init() {
 
   // Chat dialog
   els.chatForm.addEventListener('submit', submitChatMessage);
-  els.arrivedChatBtn.addEventListener('click', openChatDialog);
   els.chatDialogClose.addEventListener('click', closeChatDialog);
   refreshChatEmptyLabel();
 
@@ -739,15 +728,10 @@ function chatParams() {
 }
 
 function setChatUnread(count) {
-  const show = count > 0;
-  const text = count > 99 ? '99+' : String(count);
-  // Two chat buttons can carry the badge: the arrived-view one and the
-  // always-visible footer one. Keep both in sync.
-  [els.chatUnreadBadge, els.footerChatBadge].forEach(badge => {
-    if (!badge) return;
-    badge.textContent = text;
-    badge.hidden = !show;
-  });
+  const badge = els.footerChatBadge;
+  if (!badge) return;
+  badge.textContent = count > 99 ? '99+' : String(count);
+  badge.hidden = count <= 0;
 }
 
 function updateUnreadBadge(operatorCount) {

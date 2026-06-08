@@ -287,7 +287,6 @@ async function handleBookingLookup(bookingId, env, cors) {
     const tracking = await trackingRes.json();
 
 
-    // 2. TODO: Add a second call here to fetch driver/vehicle details.
     // GET DRIVERS DETAILS ONCE THE TAXI IS DISPATCHED
 const driverId = bookingStatus.dispatchedBooking?.driverId ?? null;
 const vehicleId = bookingStatus.dispatchedBooking?.vehicleId ?? null;
