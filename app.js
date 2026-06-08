@@ -146,6 +146,10 @@ const els = {
   chatMessages:      $('chat-messages'),
   chatForm:          $('chat-form'),
   chatInput:         $('chat-input'),
+  // Persistent contact footer (shown on every view)
+  footerCallbackBtn: $('footer-callback-btn'),
+  footerChatBtn:     $('footer-chat-btn'),
+  footerChatBadge:   $('footer-chat-badge'),
 };
 
 /* ============================================================
@@ -615,6 +619,10 @@ function init() {
   els.chatDialogClose.addEventListener('click', closeChatDialog);
   refreshChatEmptyLabel();
 
+  // Persistent footer — same actions as the in-view buttons, available everywhere.
+  els.footerCallbackBtn.addEventListener('click', openDialog);
+  els.footerChatBtn.addEventListener('click', openChatDialog);
+
   // Browse-mode arrived screen: "I've arrived" → switch to with-booking flow
   if (els.arrivedILandedBtn) {
     els.arrivedILandedBtn.addEventListener('click', () => {
@@ -702,12 +710,15 @@ function isChatDialogOpen() {
 }
 
 function setChatUnread(count) {
-  if (count > 0) {
-    els.chatUnreadBadge.textContent = count > 99 ? '99+' : String(count);
-    els.chatUnreadBadge.hidden = false;
-  } else {
-    els.chatUnreadBadge.hidden = true;
-  }
+  const show = count > 0;
+  const text = count > 99 ? '99+' : String(count);
+  // Two chat buttons can carry the badge: the arrived-view one and the
+  // always-visible footer one. Keep both in sync.
+  [els.chatUnreadBadge, els.footerChatBadge].forEach(badge => {
+    if (!badge) return;
+    badge.textContent = text;
+    badge.hidden = !show;
+  });
 }
 
 function updateUnreadBadge(operatorCount) {
@@ -863,6 +874,11 @@ function openChatDialog() {
   } else {
     els.chatDialog.setAttribute('open', '');
   }
+
+  // The footer can open chat from any view, so polling may not be running
+  // yet (it normally starts on the arrived view). Kick it off here if we
+  // have a booking and aren't already polling.
+  if (state.bookingId && !chatPollTimer) startChatPolling();
 
   // User is now looking at the full thread → clear unread state.
   const operatorCount = els.chatMessages.querySelectorAll('.chat-message--operator').length;

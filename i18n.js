@@ -44,6 +44,12 @@ const I18N = {
     'footer.help_prefix': 'Need help?',
     'footer.call_us': 'Call us on 0161 228 7878',
 
+    // Persistent contact footer
+    'footer.contact_label': 'Contact StreetCars',
+    'footer.call_office': 'Call office',
+    'footer.request_callback': 'Request callback',
+    'footer.live_chat': 'Live chat',
+
     // Booking
     'booking.eyebrow': 'Welcome to Manchester',
     'booking.title': 'Find your driver.',
@@ -169,6 +175,11 @@ const I18N = {
     'footer.help_prefix': '¿Necesitas ayuda?',
     'footer.call_us': 'Llámanos al 0161 228 7878',
 
+    'footer.contact_label': 'Contactar con StreetCars',
+    'footer.call_office': 'Llamar a la oficina',
+    'footer.request_callback': 'Pedir que me llamen',
+    'footer.live_chat': 'Chat en vivo',
+
     'booking.eyebrow': 'Bienvenido a Manchester',
     'booking.title': 'Encuentra a tu conductor.',
     'booking.subtitle': 'Introduce el número de reserva que te enviamos por correo o teléfono.',
@@ -285,6 +296,11 @@ const I18N = {
 
     'footer.help_prefix': 'هل تحتاج إلى مساعدة؟',
     'footer.call_us': 'اتصل بنا على 7878 228 0161',
+
+    'footer.contact_label': 'التواصل مع StreetCars',
+    'footer.call_office': 'اتصل بالمكتب',
+    'footer.request_callback': 'اطلب معاودة الاتصال',
+    'footer.live_chat': 'الدردشة المباشرة',
 
     'booking.eyebrow': 'مرحبًا بك في مانشستر',
     'booking.title': 'ابحث عن سائقك.',
@@ -403,6 +419,11 @@ const I18N = {
     'footer.help_prefix': '需要帮助？',
     'footer.call_us': '请致电 0161 228 7878',
 
+    'footer.contact_label': '联系 StreetCars',
+    'footer.call_office': '致电办公室',
+    'footer.request_callback': '请求回电',
+    'footer.live_chat': '在线聊天',
+
     'booking.eyebrow': '欢迎来到曼彻斯特',
     'booking.title': '找到您的司机。',
     'booking.subtitle': '输入我们发送到您邮箱或手机的预订号。',
@@ -519,6 +540,11 @@ const I18N = {
 
     'footer.help_prefix': '需要幫忙？',
     'footer.call_us': '請致電 0161 228 7878',
+
+    'footer.contact_label': '聯絡 StreetCars',
+    'footer.call_office': '致電辦公室',
+    'footer.request_callback': '要求回電',
+    'footer.live_chat': '即時對話',
 
     'booking.eyebrow': '歡迎來到曼徹斯特',
     'booking.title': '搵您嘅司機。',

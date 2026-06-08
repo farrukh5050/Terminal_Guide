@@ -415,6 +415,61 @@ body {
 
 #call-driver-btn { color: var(--success); }
 
+/* ============== PERSISTENT CONTACT FOOTER ============== */
+/* Always visible on every view. Three equal columns, sticky to the
+   bottom of the viewport so it stays in reach while the page scrolls. */
+.app-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  box-shadow: 0 -2px 12px rgba(20, 24, 31, 0.05);
+}
+
+.app-footer__btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 10px 6px;
+  min-height: 58px;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink);
+  text-decoration: none;
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+  text-align: center;
+  transition: background 120ms var(--ease), transform 120ms var(--ease);
+}
+
+.app-footer__btn svg { color: var(--ink-soft); flex-shrink: 0; }
+.app-footer__btn:hover { background: var(--bg-warm); }
+.app-footer__btn:active { transform: scale(0.97); }
+.app-footer__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+#footer-call-btn svg { color: var(--success); }
+
+.app-footer__label { display: block; }
+
+/* Unread badge sits in the top-right of the Live chat column. */
+#footer-chat-btn .btn__badge {
+  position: absolute;
+  top: 4px;
+  right: 14px;
+  margin-left: 0;
+}
+
 /* ============== BUTTONS ============== */
 .btn {
   position: relative;

@@ -397,6 +397,31 @@
       </div>
     </dialog>
 
+    <!-- =================== PERSISTENT CONTACT FOOTER =================== -->
+    <!-- Always visible, on every view. Three equal columns. -->
+    <footer class="app-footer" data-i18n-attr="aria-label:footer.contact_label" aria-label="Contact StreetCars">
+      <a class="app-footer__btn" id="footer-call-btn" href="tel:+441612287878">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M22 16.9v3a2 2 0 01-2.2 2 19.8 19.8 0 01-8.6-3.1 19.5 19.5 0 01-6-6 19.8 19.8 0 01-3.1-8.7A2 2 0 014 2h3a2 2 0 012 1.7c.1.9.3 1.7.6 2.5a2 2 0 01-.5 2.1L7.9 9.6a16 16 0 006 6l1.3-1.3a2 2 0 012.1-.4c.8.3 1.6.5 2.5.6A2 2 0 0122 16.9z"/>
+        </svg>
+        <span class="app-footer__label" data-i18n="footer.call_office">Call office</span>
+      </a>
+      <button class="app-footer__btn" id="footer-callback-btn" type="button">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+          <path d="M7 9h10M7 13h6"/>
+        </svg>
+        <span class="app-footer__label" data-i18n="footer.request_callback">Request callback</span>
+      </button>
+      <button class="app-footer__btn" id="footer-chat-btn" type="button">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>
+        </svg>
+        <span class="app-footer__label" data-i18n="footer.live_chat">Live chat</span>
+        <span class="btn__badge" id="footer-chat-badge" hidden aria-live="polite">0</span>
+      </button>
+    </footer>
+
   </main>
 
   <script src="i18n.js"></script>
