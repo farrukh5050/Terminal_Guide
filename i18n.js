@@ -75,9 +75,6 @@ const I18N = {
     'nav.photo_count': 'Photo {current} of {total}',
     'nav.next': 'I see this — next',
     'nav.last': "I'm at the pickup spot",
-    'nav.call': 'Call',
-    'nav.call_office': 'Call office',
-    'nav.callback': 'Request callback',
 
     // Arrived
     'arrived.youve_arrived': "You've arrived",
@@ -202,9 +199,6 @@ const I18N = {
     'nav.photo_count': 'Foto {current} de {total}',
     'nav.next': 'Lo veo — siguiente',
     'nav.last': 'Estoy en el punto de recogida',
-    'nav.call': 'Llamar',
-    'nav.call_office': 'Llamar a la oficina',
-    'nav.callback': 'Pedir que me llamen',
 
     'arrived.youve_arrived': 'Has llegado',
     'arrived.pickup_at': 'Recogida en',
@@ -324,9 +318,6 @@ const I18N = {
     'nav.photo_count': 'صورة {current} من {total}',
     'nav.next': 'أرى هذا — التالي',
     'nav.last': 'أنا في مكان الاستلام',
-    'nav.call': 'اتصال',
-    'nav.call_office': 'اتصل بالمكتب',
-    'nav.callback': 'اطلب معاودة الاتصال',
 
     'arrived.youve_arrived': 'لقد وصلت',
     'arrived.pickup_at': 'الاستلام في',
@@ -446,9 +437,6 @@ const I18N = {
     'nav.photo_count': '第 {current} 张，共 {total} 张',
     'nav.next': '我看到了 — 下一步',
     'nav.last': '我已到达接送点',
-    'nav.call': '通话',
-    'nav.call_office': '致电办公室',
-    'nav.callback': '请求回电',
 
     'arrived.youve_arrived': '您已到达',
     'arrived.pickup_at': '接送地点：',
@@ -568,9 +556,6 @@ const I18N = {
     'nav.photo_count': '第 {current} 張，共 {total} 張',
     'nav.next': '見到喇 — 下一步',
     'nav.last': '我喺接送點度',
-    'nav.call': '通話',
-    'nav.call_office': '致電辦公室',
-    'nav.callback': '要求回電',
 
     'arrived.youve_arrived': '您已到達',
     'arrived.pickup_at': '接送地點：',

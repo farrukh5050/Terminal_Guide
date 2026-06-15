@@ -97,8 +97,6 @@ const els = {
   // Nav
   backBtn:        $('back-btn'),
   nextBtn:        $('next-btn'),
-  callbackBtn:    $('callback-btn'),
-  callDriverBtn:  $('call-driver-btn'),
   progressSteps:  $('progress-steps'),
   stepProgressLabel: $('step-progress-label'),
   stepPhoto:      $('step-photo'),
@@ -308,18 +306,6 @@ function renderStep(direction = 'forward') {
   labelEl.textContent = isLast ? t('nav.last') : t('nav.next');
   const oldIcon = els.nextBtn.querySelector('svg');
   if (oldIcon) oldIcon.outerHTML = arrowSVG;
-
-  // Call button — driver's phone if we have a booking, otherwise the office.
-  const callLabel = els.callDriverBtn.querySelector('span');
-  if (state.mode === 'browse') {
-    els.callDriverBtn.href = 'tel:+441617400000';
-    if (callLabel) callLabel.textContent = t('nav.call_office');
-  } else {
-    if (state.booking && state.booking.driver && state.booking.driver.phone) {
-      els.callDriverBtn.href = `tel:${state.booking.driver.phone}`;
-    }
-    if (callLabel) callLabel.textContent = t('nav.call');
-  }
 
   // Animation
   els.views.nav.classList.remove('is-entering-forward', 'is-entering-back');
@@ -592,7 +578,6 @@ function init() {
 
   els.backBtn.addEventListener('click', prevStep);
   els.nextBtn.addEventListener('click', nextStep);
-  els.callbackBtn.addEventListener('click', openDialog);
 
   els.dialogClose.addEventListener('click', closeDialog);
   els.dialogCancel.addEventListener('click', closeDialog);

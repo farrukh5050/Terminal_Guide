@@ -379,42 +379,6 @@ body {
   padding-top: 12px;
 }
 
-/* ============== CONTACT BAR (call + callback) ============== */
-.contact-bar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.contact-bar__btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 12px 14px;
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  font-family: var(--font-body);
-  font-weight: 500;
-  font-size: 14px;
-  color: var(--ink);
-  text-decoration: none;
-  transition: background 120ms var(--ease), border-color 120ms var(--ease);
-  min-height: 48px;
-}
-
-.contact-bar__btn:hover {
-  background: var(--surface);
-  border-color: var(--line-strong);
-}
-
-.contact-bar__btn:active { transform: scale(0.98); }
-.contact-bar__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-
-#call-driver-btn { color: var(--success); }
-
 /* ============== PERSISTENT CONTACT FOOTER ============== */
 /* Always visible on every view. Three equal columns, sticky to the
    bottom of the viewport so it stays in reach while the page scrolls. */
