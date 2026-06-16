@@ -3,3 +3,8 @@
 wrangler.toml
 .dev.vars
 get_booking.json
+
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
