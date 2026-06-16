@@ -86,6 +86,7 @@ const els = {
   // Entry
   entryYes:       $('entry-yes'),
   entryNo:        $('entry-no'),
+  bookNow:        $('book-now'),
   // Booking
   bookingForm:    $('booking-form'),
   bookingInput:   $('booking-input'),
@@ -575,6 +576,10 @@ function init() {
     showView('picker');
     history.pushState({ view: 'picker', mode: 'browse' }, '');
   });
+  els.bookNow.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.open('https://eb3.autocab.net/#/33162', target='_blank');
+  })
 
   els.backBtn.addEventListener('click', prevStep);
   els.nextBtn.addEventListener('click', nextStep);

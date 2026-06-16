@@ -38,7 +38,8 @@ const I18N = {
     'entry.title': 'Have you arrived?',
     'entry.subtitle': "We'll guide you from arrivals all the way to your pickup spot.",
     'entry.yes': "Yes, I've landed",
-    'entry.no': 'Not yet — show me the guide',
+    'entry.no': 'Not yet - show me the guide',
+    'book.now': 'Book now / Get a quote',
 
     // Footer / shared
     'footer.help_prefix': 'Need help?',
@@ -167,7 +168,9 @@ const I18N = {
     'entry.title': '¿Ya has llegado?',
     'entry.subtitle': 'Te guiaremos desde llegadas hasta el punto de recogida.',
     'entry.yes': 'Sí, ya he aterrizado',
-    'entry.no': 'Todavía no — muéstrame la guía',
+    'entry.no': 'Todavía no - muéstrame la guía',
+
+    'book.now': 'Reservar ahora / Pedir presupuesto',
 
     'footer.help_prefix': '¿Necesitas ayuda?',
     'footer.call_us': 'Llámanos al 0161 228 7878',
@@ -286,7 +289,9 @@ const I18N = {
     'entry.title': 'هل وصلت؟',
     'entry.subtitle': 'سنرشدك من بوابة الوصول إلى مكان الاستلام.',
     'entry.yes': 'نعم، لقد هبطت',
-    'entry.no': 'ليس بعد — أرني الدليل',
+    'entry.no': 'ليس بعد - أرني الدليل',
+
+    'book.now': 'احجز الآن / احصل على عرض سعر',
 
     'footer.help_prefix': 'هل تحتاج إلى مساعدة؟',
     'footer.call_us': 'اتصل بنا على 7878 228 0161',
@@ -405,7 +410,9 @@ const I18N = {
     'entry.title': '您到达了吗？',
     'entry.subtitle': '我们将引导您从到达大厅一路前往接送地点。',
     'entry.yes': '是的，我已经落地',
-    'entry.no': '还没有 — 给我看指南',
+    'entry.no': '还没有 - 给我看指南',
+
+    'book.now': '立即预订 / 获取报价',
 
     'footer.help_prefix': '需要帮助？',
     'footer.call_us': '请致电 0161 228 7878',
@@ -524,7 +531,9 @@ const I18N = {
     'entry.title': '您到達了嗎？',
     'entry.subtitle': '我哋會帶您由到達大堂一路去到接送地點。',
     'entry.yes': '係，我已經落機',
-    'entry.no': '未呀 — 畀我睇睇指南',
+    'entry.no': '未呀 - 畀我睇睇指南',
+
+    'book.now': '立即預訂 / 索取報價',
 
     'footer.help_prefix': '需要幫忙？',
     'footer.call_us': '請致電 0161 228 7878',
