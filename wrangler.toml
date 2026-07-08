@@ -25,13 +25,14 @@ workers_dev = true
 #   { pattern = "pickup.yourdomain.com/api/*", zone_name = "yourdomain.com" }
 # ]
 
-# Serve the static frontend (index.html, app.js, styles.css, photos/) as
-# Workers static assets. A request that matches a file is served directly;
-# anything else (the /api/* routes) falls through to worker.js. This is what
-# lets ONE Worker serve both pickup.bshire.co.uk (site) and
-# api-manair.bshire.co.uk (API).
+# Serve the static frontend (public/index.html, app.js, styles.css, photos/)
+# as Workers static assets. A request that matches a file is served directly;
+# anything else (the /api/* routes) falls through to worker.js. Frontend files
+# live under public/ so worker.js and this config stay at the root and are NOT
+# publicly served. This lets ONE Worker serve both pickup.bshire.co.uk (site)
+# and api-manair.bshire.co.uk (API).
 [assets]
-directory = "."
+directory = "public"
 
 [[kv_namespaces]]
 binding = "CHAT_MESSAGES"
