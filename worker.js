@@ -59,8 +59,8 @@ const ALLOWED_ORIGINS = [
    callback_data on the Telegram buttons: "marshal:<id>".
 ============================================================ */
 const MARSHAL_SPOTS = {
-  starbucks: { label: '🅿️ Car Park', coords: '53.3691, -2.2821' },
-  carpark:   { label: '☕ Starbucks',  coords: '53.3684, -2.2805' },
+  starbucks: { label: '☕ Starbucks',        coords: '53.3684, -2.2805' },
+  carpark:   { label: '🅿️ Car Park',         coords: '53.3691, -2.2821' },
   elevators: { label: '🛗 T2 East Car Park', coords: '53.3680, -2.2787' },
 };
 
