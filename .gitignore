@@ -1,5 +1,4 @@
 .claude/
 .wrangler/
-wrangler.toml
 .dev.vars
 get_booking.json
