@@ -48,6 +48,23 @@ const ALLOWED_ORIGINS = [
 ];
 
 /* ============================================================
+   Marshal pickup spots — the ONLY source of truth for coordinates.
+   The marshal never sends GPS; he taps a button in the Telegram
+   "Location" topic, which stores just the spot ID below. The
+   frontend resolves that ID to these coordinates.
+
+   (Google Maps → right-click the exact point → click the lat/long
+   at the top of the menu to copy it.)
+   The `id` (starbucks/carpark/elevators) MUST match the
+   callback_data on the Telegram buttons: "marshal:<id>".
+============================================================ */
+const MARSHAL_SPOTS = {
+  starbucks: { label: '🅿️ Car Park', coords: '53.3691, -2.2821' },
+  carpark:   { label: '☕ Starbucks',  coords: '53.3684, -2.2805' },
+  elevators: { label: '🛗 T2 East Car Park', coords: '53.3680, -2.2787' },
+};
+
+/* ============================================================
    Entry point
    The Cloudflare runtime calls `fetch` on the default export
    for every incoming HTTP request. We just delegate to
@@ -104,11 +121,23 @@ async function handleRequest(request, env) {
     return handleChatMessages(request, env, cors);
   }
 
+  // GET /api/marshal/location — current marshal spot for the passenger button
+  if (request.method === 'GET' && url.pathname === '/api/marshal/location') {
+    return handleMarshalLocation(env, cors);
+  }
+
   return jsonResponse({ error: 'Not found' }, 404, cors);
 }
 
 async function handleTelegramWebhook(request, env, cors) {
   const update = await request.json();
+
+  // A marshal tapped a location button in the "Location" topic. Button taps
+  // arrive as callback_query (not a message), so handle them before the
+  // passenger-reply logic below.
+  if (update.callback_query) {
+    return handleMarshalCallback(update.callback_query, env, cors);
+  }
 
   const message = update.message || update.edited_message;
 
@@ -138,6 +167,106 @@ async function handleTelegramWebhook(request, env, cors) {
   });
 
   return jsonResponse({ ok: true }, 200, cors);
+}
+
+/* ============================================================
+   Marshal location
+   The marshal taps a spot button in the Telegram "Location" topic.
+   We store ONLY the spot id (+ timestamp) in KV; coordinates live
+   in MARSHAL_SPOTS. A single KV key holds the current location, so
+   each tap simply overwrites the previous one.
+============================================================ */
+const MARSHAL_LOCATION_KEY = 'marshal:location';
+
+// Rebuild the button grid from MARSHAL_SPOTS so the keyboard stays in sync
+// with the spot list (used when we edit the message after a tap).
+function marshalKeyboard() {
+  return {
+    inline_keyboard: Object.entries(MARSHAL_SPOTS).map(
+      ([id, s]) => [{ text: s.label, callback_data: `marshal:${id}` }]
+    )
+  };
+}
+
+async function handleMarshalCallback(cq, env, cors) {
+  const data = cq.data || '';
+  const spotId = data.startsWith('marshal:') ? data.slice('marshal:'.length) : null;
+  const spot = spotId ? MARSHAL_SPOTS[spotId] : null;
+
+  if (!spot) {
+    await answerCallbackQuery(env, cq.id, 'Unknown location');
+    return jsonResponse({ ok: true }, 200, cors);
+  }
+
+  await env.CHAT_MESSAGES.put(
+    MARSHAL_LOCATION_KEY,
+    JSON.stringify({ spot: spotId, updatedAt: Date.now() })
+  );
+
+  // Toast on the marshal's screen — this also stops the button's spinner.
+  await answerCallbackQuery(env, cq.id, `Location set: ${spot.label}`);
+
+  // Update the topic message so everyone can see the current spot at a
+  // glance, keeping the buttons so it can be changed again.
+  if (cq.message) {
+    await editMarshalMessage(env, cq.message.message_id, spotId);
+  }
+
+  return jsonResponse({ ok: true }, 200, cors);
+}
+
+async function handleMarshalLocation(env, cors) {
+  const raw = await env.CHAT_MESSAGES.get(MARSHAL_LOCATION_KEY);
+  if (!raw) return jsonResponse({ available: false }, 200, cors);
+
+  let saved;
+  try { saved = JSON.parse(raw); } catch { return jsonResponse({ available: false }, 200, cors); }
+
+  const spot = MARSHAL_SPOTS[saved.spot];
+  if (!spot) return jsonResponse({ available: false }, 200, cors);
+
+  return jsonResponse({
+    available: true,
+    spot: saved.spot,
+    label: spot.label,
+    coords: spot.coords,
+    mapsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(spot.coords.replace(/\s+/g, ''))}`,
+    updatedAt: saved.updatedAt
+  }, 200, cors);
+}
+
+// Telegram: acknowledge a button tap. Without this the marshal's button
+// spins for ~30s before Telegram gives up.
+async function answerCallbackQuery(env, callbackQueryId, text) {
+  const res = await fetch(
+    `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ callback_query_id: callbackQueryId, text })
+    }
+  );
+  if (!res.ok) console.error('answerCallbackQuery failed:', await res.text());
+}
+
+// Rewrite the topic message to show the current spot, re-sending the keyboard
+// so the buttons survive (editMessageText drops them if reply_markup is omitted).
+async function editMarshalMessage(env, messageId, spotId) {
+  const spot = MARSHAL_SPOTS[spotId];
+  const res = await fetch(
+    `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/editMessageText`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: env.CHAT_ID,
+        message_id: messageId,
+        text: `📍 Marshal is at: ${spot.label}\n\nTap to update your location:`,
+        reply_markup: marshalKeyboard()
+      })
+    }
+  );
+  if (!res.ok) console.error('editMessageText failed:', await res.text());
 }
 
 /* ============================================================

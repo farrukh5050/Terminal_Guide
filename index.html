@@ -203,6 +203,16 @@
           <span data-i18n="arrived.track">Track driver live</span>
         </a>
 
+        <!-- Directions to the marshal's current spot. Label + href are set in
+             app.js from GET /api/marshal/location; hidden until one is set. -->
+        <a class="btn btn--ghost btn--block btn--marshal" id="marshal-btn" href="#" target="_blank" rel="noopener" hidden>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 2a8 8 0 00-8 8c0 5.5 8 12 8 12s8-6.5 8-12a8 8 0 00-8-8z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+          <span id="marshal-btn-label">Get directions to our marshal</span>
+        </a>
+
         <!-- Contact actions (Call / Chat / Callback) live in the persistent
              footer now, so the arrived screen no longer repeats them here. -->
 

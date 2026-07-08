@@ -111,6 +111,8 @@ const els = {
   driverName:     $('driver-name'),
   driverVehicle:  $('driver-vehicle'),
   trackBtn:       $('track-btn'),
+  marshalBtn:      $('marshal-btn'),
+  marshalBtnLabel: $('marshal-btn-label'),
   // Dialog
   dialog:             $('callback-dialog'),
   dialogForm:         $('callback-form'),
@@ -378,6 +380,10 @@ function renderArrived() {
     els.trackBtn.hidden = false;
   }
 
+  // Directions to the marshal's current spot (async; button stays hidden
+  // until we know a location has been set in Telegram).
+  updateMarshalButton();
+
   // Pickup photo
   els.pickupPhoto.className = 'photo photo--pickup';
   if (route.pickup.photo) {
@@ -391,6 +397,26 @@ function renderArrived() {
       </div>
       <span class="photo__hint">${esc(spot)}</span>
     `;
+  }
+}
+
+/* Fetch the marshal's current spot and point the button at it. The
+   coordinates live server-side (MARSHAL_SPOTS in worker.js); here we just
+   consume the ready-made mapsUrl. Silently hides the button on any failure
+   or when no location has been set yet. */
+async function updateMarshalButton() {
+  if (!els.marshalBtn) return;
+  try {
+    const loc = await api.getMarshalLocation();
+    if (loc && loc.available && loc.mapsUrl) {
+      els.marshalBtn.href = loc.mapsUrl;
+      els.marshalBtnLabel.textContent = t('arrived.marshal', { spot: loc.label });
+      els.marshalBtn.hidden = false;
+    } else {
+      els.marshalBtn.hidden = true;
+    }
+  } catch {
+    els.marshalBtn.hidden = true;
   }
 }
 
@@ -984,6 +1010,12 @@ const api = {
     const res = await fetch(`${API_BASE}/api/chat/messages?${params.toString()}`);
 
     if (!res.ok) throw new ApiError('Could not load messages', 'server');
+    return res.json();
+  },
+
+  async getMarshalLocation() {
+    const res = await fetch(`${API_BASE}/api/marshal/location`);
+    if (!res.ok) return null;
     return res.json();
   }
 };
