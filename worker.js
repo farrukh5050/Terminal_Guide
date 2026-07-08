@@ -230,7 +230,7 @@ async function handleMarshalLocation(env, cors) {
     spot: saved.spot,
     label: spot.label,
     coords: spot.coords,
-    mapsUrl: `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(spot.coords.replace(/\s+/g, ''))}`,
+    mapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(spot.coords.replace(/\s+/g, ''))}`,
     updatedAt: saved.updatedAt
   }, 200, cors);
 }
