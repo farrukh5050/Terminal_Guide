@@ -387,7 +387,7 @@ body {
   bottom: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
   padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px));
   background: var(--surface);
@@ -423,6 +423,7 @@ body {
 .app-footer__btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 
 #footer-call-btn svg { color: var(--success); }
+#footer-whatsapp-btn svg { color: #25D366; }
 
 .app-footer__label { display: block; }
 

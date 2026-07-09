@@ -50,6 +50,7 @@ const I18N = {
     'footer.call_office': 'Call office',
     'footer.request_callback': 'Request callback',
     'footer.live_chat': 'Live chat',
+    'footer.whatsapp': 'WhatsApp',
 
     // Booking
     'booking.eyebrow': 'Welcome to Manchester',
@@ -180,6 +181,7 @@ const I18N = {
     'footer.call_office': 'Llamar a la oficina',
     'footer.request_callback': 'Pedir que me llamen',
     'footer.live_chat': 'Chat en vivo',
+    'footer.whatsapp': 'WhatsApp',
 
     'booking.eyebrow': 'Bienvenido a Manchester',
     'booking.title': 'Encuentra a tu conductor.',
@@ -302,6 +304,7 @@ const I18N = {
     'footer.call_office': 'اتصل بالمكتب',
     'footer.request_callback': 'اطلب معاودة الاتصال',
     'footer.live_chat': 'الدردشة المباشرة',
+    'footer.whatsapp': 'واتساب',
 
     'booking.eyebrow': 'مرحبًا بك في مانشستر',
     'booking.title': 'ابحث عن سائقك.',
@@ -424,6 +427,7 @@ const I18N = {
     'footer.call_office': '致电办公室',
     'footer.request_callback': '请求回电',
     'footer.live_chat': '在线聊天',
+    'footer.whatsapp': 'WhatsApp',
 
     'booking.eyebrow': '欢迎来到曼彻斯特',
     'booking.title': '找到您的司机。',
@@ -546,6 +550,7 @@ const I18N = {
     'footer.call_office': '致電辦公室',
     'footer.request_callback': '要求回電',
     'footer.live_chat': '即時對話',
+    'footer.whatsapp': 'WhatsApp',
 
     'booking.eyebrow': '歡迎來到曼徹斯特',
     'booking.title': '搵您嘅司機。',
