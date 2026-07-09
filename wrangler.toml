@@ -5,7 +5,7 @@
 
 # The Worker's name in the Cloudflare dashboard.
 # Also used as the subdomain on workers.dev (see below).
-name = "streetcars-api"
+name = "manair"
 
 # Entry point — the file Wrangler bundles and uploads.
 main = "worker.js"
