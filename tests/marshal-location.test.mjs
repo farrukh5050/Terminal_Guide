@@ -26,7 +26,8 @@ test('marshal selections persist in SQLite and populate the passenger directions
       }
     },
     TELEGRAM_BOT_TOKEN: 'test-token',
-    CHAT_ID: 'test-chat'
+    CHAT_ID: 'test-chat',
+    TELEGRAM_WEBHOOK_SECRET: 'test-secret'
   };
 
   // No messages are sent to Telegram during this test.
@@ -56,6 +57,7 @@ test('marshal selections persist in SQLite and populate the passenger directions
   ]) {
     const response = await worker.fetch(new Request('https://example.test/api/telegram-webhook', {
       method: 'POST',
+      headers: { 'X-Telegram-Bot-Api-Secret-Token': 'test-secret' },
       body: JSON.stringify({ callback_query: {
         id: `tap-${spot}`, data: `marshal:${spot}`, message: { message_id: 123 }
       } })
@@ -80,4 +82,24 @@ test('marshal selections persist in SQLite and populate the passenger directions
   assert.deepEqual(await getLocation(), { available: false });
   await runInNewContext(`${updateButtonSource}\nupdateMarshalButton();`, context);
   assert.equal(els.marshalBtn.hidden, true);
+});
+
+// The webhook is public: the shared secret is all that keeps strangers from
+// posting operator replies into a passenger's thread.
+test('the Telegram webhook rejects updates without the shared secret', async () => {
+  const post = (headers) => worker.fetch(new Request('https://example.test/api/telegram-webhook', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ message: { message_thread_id: 1, text: 'hi', date: 1 } })
+  }), { TELEGRAM_WEBHOOK_SECRET: 'test-secret' });
+
+  assert.equal((await post({})).status, 403);
+  assert.equal((await post({ 'X-Telegram-Bot-Api-Secret-Token': 'wrong' })).status, 403);
+
+  // Unset secret must fail closed rather than accept everything.
+  const unguarded = await worker.fetch(new Request('https://example.test/api/telegram-webhook', {
+    method: 'POST',
+    body: JSON.stringify({ message: { message_thread_id: 1, text: 'hi', date: 1 } })
+  }), {});
+  assert.equal(unguarded.status, 403);
 });

@@ -31,7 +31,7 @@
      threadId is Telegram's message_thread_id, the true passenger ↔ topic
      mapping; never parse booking ids out of message text.
 
-     The UNIQUE index on convKey is what makes the ON CONFLICT upsert in
+     The UNIQUE index on convKey is what makes the ON CONFLICT insert in
      getOrCreateThread() safe, so two simultaneous first messages cannot
      leave two rows for one conversation.
 
@@ -74,12 +74,8 @@
       Run these from this folder: wrangler resolves the DB binding out of
       wrangler.toml and fails with "couldn't find a D1 DB" from anywhere else.
 
-      schemas.sql is not idempotent. Re-applying it to a database that already
-      has the tables aborts on the first CREATE TABLE, which means the CREATE
-      INDEX statements at the bottom never run — tables present, indexes
-      missing, writes broken. If that happens, create the indexes on their own:
-
-        wrangler d1 execute chat-db --remote --command "CREATE UNIQUE INDEX idx_threads_convkey ON threads(convKey); CREATE INDEX idx_msg_thread ON messages(threadId, timestamp);"
+      schemas.sql uses IF NOT EXISTS, so it can be reapplied to create
+      missing tables and indexes without deleting existing data.
 
    5. Secrets — all four are required. Mirror them in .dev.vars for local
       dev (that file is not committed):
@@ -104,9 +100,10 @@
 
    7. Register the Telegram webhook so operator replies reach the worker.
       secret_token is what the handler checks on every update, and
-      allowed_updates keeps Telegram from sending edits and other noise:
+      allowed_updates must list callback_query as well as message, or the
+      marshal's location buttons never reach the worker:
 
-        curl -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" -H "Content-Type: application/json" -d '{"url":"https://api-manair.bshire.co.uk/api/telegram-webhook","secret_token":"<TELEGRAM_WEBHOOK_SECRET>","allowed_updates":["message"]}'
+        curl -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" -H "Content-Type: application/json" -d '{"url":"https://api-manair.bshire.co.uk/api/telegram-webhook","secret_token":"<TELEGRAM_WEBHOOK_SECRET>","allowed_updates":["message","callback_query"]}'
 
       On PowerShell call curl.exe, not curl (which aliases to
       Invoke-WebRequest and rejects -H). PowerShell 5.1 also strips the inner
@@ -224,6 +221,13 @@ export default {
 };
 
 async function handleTelegramWebhook(request, env, cors) {
+  // Telegram echoes the secret_token from setWebhook on every update. Without
+  // this the endpoint is public: anyone who knows the URL could post fake
+  // operator replies into a passenger's thread. Fails closed when unset.
+  if (request.headers.get('X-Telegram-Bot-Api-Secret-Token') !== env.TELEGRAM_WEBHOOK_SECRET) {
+    return jsonResponse({ error: 'Forbidden' }, 403, cors);
+  }
+
   const update = await request.json();
 
   // A marshal tapped a location button in the "Location" topic. Button taps
@@ -367,10 +371,10 @@ async function editMarshalMessage(env, messageId, spotId) {
 /* ============================================================
    Passenger chat — send + retrieve
    Passenger POSTs a message; we forward it into the booking's
-   Telegram topic AND persist it in KV so the browser sees its own
+   Telegram topic AND persist it in D1 so the browser sees its own
    message when it polls. Operator replies are stored by the
-   Telegram webhook above. Each message is written to its own KV
-   key (see messageKey) so concurrent passenger+operator writes
+   Telegram webhook above. Each message is written to its own row
+   so concurrent passenger+operator writes
    never trample each other.
 ============================================================ */
 async function handleChatSend(request, env, cors) {
@@ -391,20 +395,21 @@ async function handleChatSend(request, env, cors) {
     return jsonResponse({ error: 'Message is required' }, 400, cors);
   }
 
-  const threadId = await getOrCreateThread(env, conv, terminal);
   const trimmed = String(message).trim();
   const timestamp = Date.now();
+
+  // The topic title already carries booking + terminal, so the chat body
+  // can just be the message itself. The 💬 prefix distinguishes passenger
+  // chat from system notifications (arrival, dispatch) in the same topic.
+  // Sent before it is stored, so the row lands on the thread that actually
+  // took the message: sendToConversation may have had to open a new topic.
+  const threadId = await sendToConversation(env, conv, terminal, `💬 ${trimmed}`);
 
   await putChatMessage(env, threadId, timestamp, 'px', {
     from: 'passenger',
     text: trimmed,
     timestamp
   });
-
-  // The topic title already carries booking + terminal, so the chat body
-  // can just be the message itself. The 💬 prefix distinguishes passenger
-  // chat from system notifications (arrival, dispatch) in the same topic.
-  await sendMessageToTopic(env, threadId, `💬 ${trimmed}`);
 
   return jsonResponse({ ok: true, threadId }, 200, cors);
 }
@@ -420,46 +425,27 @@ async function handleChatMessages(request, env, cors) {
     return jsonResponse({ error: 'Invalid conversation' }, 400, cors);
   }
 
-  const threadId = await env.CHAT_MESSAGES.get(`${conv.key}:thread`);
-  if (!threadId) {
+  const thread = await env.DB.prepare(
+    'SELECT threadId FROM threads WHERE convKey = ?'
+  ).bind(conv.key).first();
+  if (!thread) {
     return jsonResponse({ messages: [] }, 200, cors);
   }
 
-  // Each message lives at its own key, with the payload in the key's metadata
-  // (not the value), so a single list() returns every message inline — no
-  // N+1 gets per poll.
-  const list = await env.CHAT_MESSAGES.list({ prefix: `thread:${threadId}:msg:` });
-
-  const messages = list.keys
-    .map(k => k.metadata)
-    .filter(Boolean)
-    .sort((a, b) => a.timestamp - b.timestamp);
+  const { results: messages } = await env.DB.prepare(
+    `SELECT fromUser AS "from", text, timestamp FROM messages
+     WHERE threadId = ? ORDER BY timestamp, id`
+  ).bind(thread.threadId).all();
 
   return jsonResponse({ messages }, 200, cors);
 }
 
-/* Per-message KV key. Each message lives at its own key so concurrent
-   writers (passenger send + Telegram webhook) never touch the same blob,
-   eliminating the read-modify-write race that was dropping messages.
-   Timestamp goes first so the key prefix sorts roughly chronologically,
-   which is convenient when inspecting KV directly. */
-function messageKey(threadId, timestamp, source) {
-  const rand = crypto.randomUUID().split('-')[0];
-  return `thread:${threadId}:msg:${timestamp}-${source}-${rand}`;
-}
-
-/* Store a chat message. The payload goes in the key's METADATA (not the
-   value) so a single list() call returns every message inline, avoiding
-   the N+1 read pattern that was slowing down poll responses.
-   KV metadata caps out at 1024 bytes; chat messages in this app are short
-   enough that we don't need a truncation fallback, but if a future feature
-   sends long payloads, store the overflow in the value and check a flag. */
+// Each insert gets its own ID, including messages with the same timestamp.
 async function putChatMessage(env, threadId, timestamp, source, payload) {
-  await env.CHAT_MESSAGES.put(
-    messageKey(threadId, timestamp, source),
-    '',
-    { metadata: payload }
-  );
+  await env.DB.prepare(
+    `INSERT INTO messages (threadId, source, fromUser, text, timestamp)
+     VALUES (?, ?, ?, ?, ?)`
+  ).bind(threadId, source, payload.from, payload.text, timestamp).run();
 }
 
 /* ============================================================
@@ -600,15 +586,10 @@ async function handleArrival(request, env, cors) {
   // Forward to Telegram so the office sees the passenger is waiting.
   if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
     try {
-      const threadId = await getOrCreatePassengerThread(
+      await sendToConversation(
         env,
-        bookingId,
-        terminal
-      );
-
-      await sendMessageToTopic(
-        env,
-        threadId,
+        bookingConversation(bookingId),
+        terminal,
         `🚖 Passenger has arrived\n\n` +
         `Booking: ${bookingId}\n` +
         `Terminal: ${terminal || 'Unknown'}`
@@ -650,15 +631,10 @@ async function handleDispatch(request, env, cors) {
 
   if (env.TELEGRAM_BOT_TOKEN && env.CHAT_ID) {
     try {
-      const threadId = await getOrCreatePassengerThread(
+      await sendToConversation(
         env,
-        bookingId,
-        terminal
-      );
-
-      await sendMessageToTopic(
-        env,
-        threadId,
+        bookingConversation(bookingId),
+        terminal,
         `🚨 CUSTOMER HAS ARRIVED - DISPATCH CAR\n` +
         `Booking: ${bookingId}` +
         (terminal ? `\nTerminal: ${terminal}` : '')
@@ -786,7 +762,7 @@ function jsonResponse(data, status, cors) {
   });
 }
 
-// Per-booking topic deduplication. The mapping in KV is the source of truth:
+// Per-booking topic deduplication. The mapping in D1 is the source of truth:
 // without it, /api/arrived and /api/dispatch each call createForumTopic and
 // the operator ends up with two topics per passenger.
 //
@@ -804,7 +780,7 @@ function resolveConversation(bookingId, guestId) {
     return { kind: 'booking', key: `booking:${bookingId}`, bookingId: String(bookingId) };
   }
   if (guestId != null && guestId !== '') {
-    // This value becomes part of a KV key and a Telegram topic name, so
+    // This value becomes part of a conversation key and a Telegram topic name, so
     // keep it to a strict opaque-token shape — never arbitrary text.
     if (!/^[A-Za-z0-9-]{8,64}$/.test(String(guestId))) return null;
     return { kind: 'guest', key: `guest:${guestId}`, guestId: String(guestId) };
@@ -812,47 +788,74 @@ function resolveConversation(bookingId, guestId) {
   return null;
 }
 
-// Booking-keyed wrapper, kept for the arrival/dispatch callers.
-async function getOrCreatePassengerThread(env, bookingId, terminal) {
-  return getOrCreateThread(
-    env,
-    { kind: 'booking', key: `booking:${bookingId}`, bookingId: String(bookingId) },
-    terminal
-  );
+// Booking-keyed conversation, for the arrival/dispatch callers that hold a
+// booking ID rather than a resolved conversation.
+function bookingConversation(bookingId) {
+  return { kind: 'booking', key: `booking:${bookingId}`, bookingId: String(bookingId) };
 }
 
-// Conversation → Telegram topic deduplication. The mapping in KV is the
+// Every passenger -> Telegram message goes through here. Operators delete
+// topics once a job is done, which leaves a D1 row pointing at a topic that
+// no longer exists: Telegram answers "message thread not found" and that
+// conversation 502s forever. Drop the stale mapping and retry once, so the
+// message simply opens a fresh topic.
+//
+// Messages from the deleted topic stay in `messages` under the dead
+// threadId and drop out of the passenger's history, which matches what the
+// operator did by deleting the topic.
+async function sendToConversation(env, conv, terminal, text) {
+  const threadId = await getOrCreateThread(env, conv, terminal);
+  try {
+    await sendMessageToTopic(env, threadId, text);
+    return threadId;
+  } catch (err) {
+    if (!/message thread not found/i.test(String(err.message))) throw err;
+  }
+
+  await env.DB.prepare('DELETE FROM threads WHERE convKey = ?').bind(conv.key).run();
+  const fresh = await getOrCreateThread(env, conv, terminal);
+  await sendMessageToTopic(env, fresh, text);
+  return fresh;
+}
+
+// Conversation → Telegram topic deduplication. The mapping in D1 is the
 // source of truth: without it, repeat calls would each call createForumTopic
 // and the operator would end up with two topics per passenger/guest.
 //
 // Booking topics are created before the terminal is known ("BK X · Unknown")
 // and renamed once it is. Guest topics keep their name for life.
 async function getOrCreateThread(env, conv, terminal) {
-  const idKey = `${conv.key}:thread`;
-  const nameKey = `${conv.key}:thread:name`;
   const desiredName = conv.kind === 'booking'
     ? topicName(conv.bookingId, terminal)
     : guestTopicName(conv.guestId);
 
-  const existingThreadId = await env.CHAT_MESSAGES.get(idKey);
+  let thread = await env.DB.prepare(
+    'SELECT threadId, name FROM threads WHERE convKey = ?'
+  ).bind(conv.key).first();
 
-  if (existingThreadId) {
-    // Only bookings rename (when the terminal becomes known). Skip for guests,
-    // and when terminal is null — no point overwriting a real name with "Unknown".
-    if (conv.kind === 'booking' && terminal) {
-      const storedName = await env.CHAT_MESSAGES.get(nameKey);
-      if (storedName !== desiredName) {
-        await editForumTopicName(env, Number(existingThreadId), desiredName);
-        await env.CHAT_MESSAGES.put(nameKey, desiredName);
-      }
-    }
-    return Number(existingThreadId);
+  if (!thread) {
+    const topic = await createForumTopic(env, desiredName);
+    await env.DB.prepare(
+      `INSERT INTO threads (threadId, convKey, name) VALUES (?, ?, ?)
+       ON CONFLICT(convKey) DO NOTHING`
+    ).bind(topic.message_thread_id, conv.key, desiredName).run();
+
+    // Use the persisted mapping if another request inserted first, so all
+    // messages go to the same topic even when first requests overlap.
+    thread = await env.DB.prepare(
+      'SELECT threadId, name FROM threads WHERE convKey = ?'
+    ).bind(conv.key).first();
   }
 
-  const topic = await createForumTopic(env, desiredName);
-  await env.CHAT_MESSAGES.put(idKey, String(topic.message_thread_id));
-  await env.CHAT_MESSAGES.put(nameKey, desiredName);
-  return topic.message_thread_id;
+  // Never replace a known terminal with "Unknown" on a later dispatch.
+  if (conv.kind === 'booking' && terminal && thread.name !== desiredName) {
+    const renamed = await editForumTopicName(env, thread.threadId, desiredName);
+    if (renamed) {
+      await env.DB.prepare('UPDATE threads SET name = ? WHERE threadId = ?')
+        .bind(desiredName, thread.threadId).run();
+    }
+  }
+  return thread.threadId;
 }
 
 function topicName(bookingId, terminal) {
@@ -883,6 +886,7 @@ async function editForumTopicName(env, threadId, name) {
     // the caller (which is usually serving a passenger request).
     console.error('editForumTopic failed:', await res.text());
   }
+  return res.ok;
 }
 
 async function createForumTopic(env, name) {

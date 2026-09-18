@@ -1,10 +1,10 @@
-CREATE TABLE threads (
+CREATE TABLE IF NOT EXISTS threads (
   threadId INTEGER PRIMARY KEY,
   convKey TEXT NOT NULL,       -- booking:12345678 or guest:abcd1234
   name TEXT NOT NULL           -- topic name
 );
 
-CREATE TABLE messages (
+CREATE TABLE IF NOT EXISTS messages (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   threadId INTEGER NOT NULL,
   source TEXT NOT NULL,        -- 'px' or 'op'
@@ -19,5 +19,5 @@ CREATE TABLE IF NOT EXISTS settings (
   updatedAt INTEGER NOT NULL
 );
 
-CREATE UNIQUE INDEX idx_threads_convkey ON threads(convKey);
-CREATE INDEX idx_msg_thread ON messages(threadId, timestamp);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_threads_convkey ON threads(convKey);
+CREATE INDEX IF NOT EXISTS idx_msg_thread ON messages(threadId, timestamp);
