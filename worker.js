@@ -1,17 +1,47 @@
 /* ============================================================
-   StreetCars — Backend Worker
+   StreetCars — Backend Worker (D1)
    ============================================================
-   Deploys to Cloudflare Workers. Holds your Autocab subscription
-   key as a server-side secret. The browser NEVER sees this key.
+   Deploys to Cloudflare Workers. Holds the Autocab subscription key
+   and the Telegram bot token as server-side secrets — the browser
+   NEVER sees either.
+
+   Chat state lives in Cloudflare D1 (SQLite) under the binding `DB`.
 
    ROUTES PROVIDED
-     GET  /api/booking/{bookingId}   → look up booking, return safe data
-     POST /api/callback              → record callback / message request
-     POST /api/arrived               → passenger arrived at pickup spot
-     POST /api/dispatch              → passenger confirmed; office dispatches the car
-     POST /api/telegram-webhook      → operator replies inbound from Telegram
-     POST /api/chat/send             → passenger → Telegram topic (also stored in KV)
-     GET  /api/chat/messages?bookingId=…  → unified chat history for the browser
+     GET  /api/booking/{bookingId}        → look up booking, return safe data
+     POST /api/callback                   → callback / message request → Telegram
+     POST /api/arrived                    → passenger arrived at pickup spot
+     POST /api/dispatch                   → passenger confirmed; office dispatches
+     POST /api/chat/send                  → passenger → Telegram topic, stored in D1
+     GET  /api/chat/messages?bookingId=…  → chat history for the browser
+                            ?guestId=…     (guest conversations key on guestId)
+     POST /api/telegram-webhook           → operator replies inbound from Telegram,
+                                            stored as 'op' rows against the topic's
+                                            thread. Guarded by TELEGRAM_WEBHOOK_SECRET;
+                                            registered with setWebhook (step 7 below).
+     anything else                        → 404
+
+   ============================================================
+   DATA MODEL (see schemas.sql)
+   ============================================================
+   threads    threadId (PK) · convKey (UNIQUE) · name
+
+     convKey is 'booking:<8-digit-id>' or 'guest:<token>', built by
+     resolveConversation() — the only key shape any query should use.
+     threadId is Telegram's message_thread_id, the true passenger ↔ topic
+     mapping; never parse booking ids out of message text.
+
+     The UNIQUE index on convKey is what makes the ON CONFLICT upsert in
+     getOrCreateThread() safe, so two simultaneous first messages cannot
+     leave two rows for one conversation.
+
+   messages   id (PK) · threadId · source ('px'|'op') · fromUser
+              ('passenger'|'operator') · text · timestamp (ms since epoch)
+
+     Written only through putChatMessage(). One row per message means no
+     read-modify-write, so passenger and operator writes cannot trample
+     each other the way they could in KV. Read back by handleChatMessages(),
+     which maps fromUser → `from` for the frontend.
 
    ============================================================
    DEPLOYING (one-off setup)
@@ -20,31 +50,96 @@
         npm install -g wrangler
         wrangler login
 
-   2. Create wrangler.toml in the same folder:
+   2. wrangler.toml — the [[d1_databases]] block is what provides env.DB:
 
-        name = "StreetCars-api"
+        name = "telegram-chat"
         main = "worker.js"
-        compatibility_date = "2025-01-01"
+        compatibility_date = "2026-06-10"
 
-   3. Add your Autocab key as a secret (NOT in the file):
-        wrangler secret put AUTOCAB_KEY
-        # paste your key when prompted
+        [[d1_databases]]
+        binding = "DB"
+        database_name = "chat-db"
+        database_id = "fab7f1ff-5398-4a89-a652-67238c6a41ea"
 
-   4. (Optional) Add a notification webhook for callbacks:
-        wrangler secret put CALLBACK_WEBHOOK_URL
+   3. Create the database. Already done for this project — wrangler prints
+      the database_id to paste above:
+        wrangler d1 create chat-db
 
-   5. Deploy:
+   4. Apply the schema. Local and remote are separate databases, and
+      d1 execute defaults to LOCAL — without --remote you will silently
+      apply nothing to production:
+        wrangler d1 execute chat-db --local  --file=./schemas.sql
+        wrangler d1 execute chat-db --remote --file=./schemas.sql
+
+      Run these from this folder: wrangler resolves the DB binding out of
+      wrangler.toml and fails with "couldn't find a D1 DB" from anywhere else.
+
+      schemas.sql is not idempotent. Re-applying it to a database that already
+      has the tables aborts on the first CREATE TABLE, which means the CREATE
+      INDEX statements at the bottom never run — tables present, indexes
+      missing, writes broken. If that happens, create the indexes on their own:
+
+        wrangler d1 execute chat-db --remote --command "CREATE UNIQUE INDEX idx_threads_convkey ON threads(convKey); CREATE INDEX idx_msg_thread ON messages(threadId, timestamp);"
+
+   5. Secrets — all four are required. Mirror them in .dev.vars for local
+      dev (that file is not committed):
+        wrangler secret put AUTOCAB_KEY              # Autocab subscription key
+        wrangler secret put TELEGRAM_BOT_TOKEN       # bot that owns the topics
+        wrangler secret put CHAT_ID                  # operator supergroup id
+        wrangler secret put TELEGRAM_WEBHOOK_SECRET  # shared with setWebhook (step 7)
+
+      wrangler secret put only works on a Worker that already exists, so run
+      these after the first deploy — otherwise it offers to create an empty
+      Worker for them. For local dev .dev.vars alone is enough.
+
+      TELEGRAM_WEBHOOK_SECRET is the only thing authenticating the public
+      webhook endpoint: handleTelegramWebhook fails closed and 403s everything
+      when it is unset, so a missing value looks like a silent outage.
+
+      The bot must be an admin of that supergroup with Topics enabled, or
+      createForumTopic fails and chat / arrived / dispatch all return 502.
+
+   6. Deploy:
         wrangler deploy
 
-   6. In your Cloudflare dashboard, bind the Worker to a route
-      worker is binded to url api-manair.bshire.co.uk
-      /api/booking/{id} from the same origin.
+   7. Register the Telegram webhook so operator replies reach the worker.
+      secret_token is what the handler checks on every update, and
+      allowed_updates keeps Telegram from sending edits and other noise:
+
+        curl -X POST "https://api.telegram.org/bot<BOT_TOKEN>/setWebhook" -H "Content-Type: application/json" -d '{"url":"https://api-manair.bshire.co.uk/api/telegram-webhook","secret_token":"<TELEGRAM_WEBHOOK_SECRET>","allowed_updates":["message"]}'
+
+      On PowerShell call curl.exe, not curl (which aliases to
+      Invoke-WebRequest and rejects -H). PowerShell 5.1 also strips the inner
+      quotes when passing JSON to a native exe, so put the body in a file and
+      use -d "@setwebhook.json", or send it with Invoke-RestMethod instead.
+
+      Until this is done the chat is one-way: passenger messages reach the
+      operators' group, but replies are never stored or polled back.
+
+   8. Bind the Worker to a route in the Cloudflare dashboard. It currently
+      serves api-manair.bshire.co.uk. The frontend's origin must also be
+      listed in ALLOWED_ORIGINS below or the browser discards the responses.
+
+   ============================================================
+   DATABASE CHECKS
+   ============================================================
+   d1 execute defaults to the LOCAL database. --remote is required to touch
+   production; there is no prompt reminding you which one you just changed.
+
+     wrangler d1 execute chat-db --local  --command "SELECT * FROM threads"
+     wrangler d1 execute chat-db --local  --command "SELECT * FROM messages"
+     wrangler d1 execute chat-db --remote --command "SELECT * FROM threads"
+     wrangler d1 execute chat-db --remote --command "SELECT name FROM sqlite_master WHERE type IN ('table','index')"
+
+   That last one is the quickest way to confirm both indexes exist — a
+   missing idx_threads_convkey breaks every thread INSERT, while leaving
+   reads working, so it is easy to miss.
 
 ============================================================ */
 
 const ALLOWED_ORIGINS = [
-  'https://pickup.bshire.co.uk',   // production frontend
-  'http://localhost:8080'          // local dev
+  "https://pickup.bshire.co.uk",
+  "http://localhost:8080"
 ];
 
 /* ============================================================
@@ -59,75 +154,74 @@ const ALLOWED_ORIGINS = [
    callback_data on the Telegram buttons: "marshal:<id>".
 ============================================================ */
 const MARSHAL_SPOTS = {
-  starbucks: { label: '☕ Starbucks',        coords: '53.3684, -2.2805' },
-  carpark:   { label: '🅿️ Car Park',         coords: '53.3691, -2.2821' },
+  starbucks: { label: '☕ Starbucks', coords: '53.3684, -2.2805' },
+  carpark: { label: '🅿️ Car Park', coords: '53.3691, -2.2821' },
   elevators: { label: '🛗 T2 East Car Park', coords: '53.3680, -2.2787' },
 };
 
 /* ============================================================
    Entry point
-   The Cloudflare runtime calls `fetch` on the default export
-   for every incoming HTTP request. We just delegate to
-   handleRequest so the rest of the file can avoid the naming
-   collision with the global fetch() used for outbound calls.
+   The Cloudflare runtime calls fetch() on the default export for
+   every incoming HTTP request. Routes are matched in order and the
+   final return is the 404 fallback — every path must end in a
+   Response, or the runtime raises "did not return a Response".
 ============================================================ */
+
 export default {
-  fetch: handleRequest
+  async fetch(request, env) {
+    const origin = request.headers.get('Origin') || '';
+    const cors = corsHeaders(origin);
+
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { status: 204, headers: cors });
+    }
+
+    const url = new URL(request.url);
+
+    // GET /api/booking/{8-digit-id}
+    const bookingMatch = url.pathname.match(/^\/api\/booking\/(\d{8})$/);
+    if (request.method === 'GET' && bookingMatch) {
+      return handleBookingLookup(bookingMatch[1], env, cors);
+    }
+
+    // POST /api/callback
+    if (request.method === 'POST' && url.pathname === '/api/callback') {
+      return handleCallback(request, env, cors);
+    }
+
+    // POST /api/arrived
+    if (request.method === 'POST' && url.pathname === '/api/arrived') {
+      return handleArrival(request, env, cors);
+    }
+
+    // POST /api/dispatch — passenger has confirmed; office should dispatch the car.
+    if (request.method === 'POST' && url.pathname === '/api/dispatch') {
+      return handleDispatch(request, env, cors);
+    }
+
+    // POST /api/telegram-webhook — webhook for replying to passengers in the website.
+    if (request.method === 'POST' && url.pathname === '/api/telegram-webhook') {
+      return handleTelegramWebhook(request, env, cors);
+    }
+
+    // POST /api/chat/send — passenger → Telegram topic
+    if (request.method === 'POST' && url.pathname === '/api/chat/send') {
+      return handleChatSend(request, env, cors);
+    }
+
+    // GET /api/chat/messages?bookingId=... — operator replies for the browser to poll
+    if (request.method === 'GET' && url.pathname === '/api/chat/messages') {
+      return handleChatMessages(request, env, cors);
+    }
+
+    // GET /api/marshal/location — current marshal spot for the passenger button
+    if (request.method === 'GET' && url.pathname === '/api/marshal/location') {
+      return handleMarshalLocation(env, cors);
+    }
+
+    return jsonResponse({ error: 'Not found' }, 404, cors);
+  }
 };
-
-async function handleRequest(request, env) {
-  const origin = request.headers.get('Origin') || '';
-  const cors = corsHeaders(origin);
-
-  if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: cors });
-  }
-
-  const url = new URL(request.url);
-
-  // GET /api/booking/{8-digit-id}
-  const bookingMatch = url.pathname.match(/^\/api\/booking\/(\d{8})$/);
-  if (request.method === 'GET' && bookingMatch) {
-    return handleBookingLookup(bookingMatch[1], env, cors);
-  }
-
-  // POST /api/callback
-  if (request.method === 'POST' && url.pathname === '/api/callback') {
-    return handleCallback(request, env, cors);
-  }
-
-  // POST /api/arrived
-  if (request.method === 'POST' && url.pathname === '/api/arrived') {
-    return handleArrival(request, env, cors);
-  }
-
-  // POST /api/dispatch — passenger has confirmed; office should dispatch the car.
-  if (request.method === 'POST' && url.pathname === '/api/dispatch') {
-    return handleDispatch(request, env, cors);
-  }
-
-  // POST /api/telegram-webhook — webhook for replying to passengers in the website.
-  if (request.method === 'POST' && url.pathname === '/api/telegram-webhook') {
-    return handleTelegramWebhook(request, env, cors);
-  }
-
-  // POST /api/chat/send — passenger → Telegram topic
-  if (request.method === 'POST' && url.pathname === '/api/chat/send') {
-    return handleChatSend(request, env, cors);
-  }
-
-  // GET /api/chat/messages?bookingId=... — operator replies for the browser to poll
-  if (request.method === 'GET' && url.pathname === '/api/chat/messages') {
-    return handleChatMessages(request, env, cors);
-  }
-
-  // GET /api/marshal/location — current marshal spot for the passenger button
-  if (request.method === 'GET' && url.pathname === '/api/marshal/location') {
-    return handleMarshalLocation(env, cors);
-  }
-
-  return jsonResponse({ error: 'Not found' }, 404, cors);
-}
 
 async function handleTelegramWebhook(request, env, cors) {
   const update = await request.json();
@@ -142,18 +236,18 @@ async function handleTelegramWebhook(request, env, cors) {
   const message = update.message || update.edited_message;
 
   if (!message || message.from?.is_bot) {
-    return jsonResponse({ok: true}, 200, cors)
+    return jsonResponse({ ok: true }, 200, cors)
   }
 
   // Telegram sends webhook updates for stickers, photos, voice notes, etc.
   // The passenger UI only renders text, so silently drop the rest.
   if (!message.text) {
-    return jsonResponse({ok: true}, 200, cors)
+    return jsonResponse({ ok: true }, 200, cors)
   }
 
   const threadId = message.message_thread_id;
   if (!threadId) {
-    return jsonResponse({ok: true}, 200, cors)
+    return jsonResponse({ ok: true }, 200, cors)
   }
 
   // Telegram's `date` is in seconds; convert to ms so it sorts with passenger
@@ -172,8 +266,8 @@ async function handleTelegramWebhook(request, env, cors) {
 /* ============================================================
    Marshal location
    The marshal taps a spot button in the Telegram "Location" topic.
-   We store ONLY the spot id (+ timestamp) in KV; coordinates live
-   in MARSHAL_SPOTS. A single KV key holds the current location, so
+   We store ONLY the spot id (+ timestamp) in D1; coordinates live
+   in MARSHAL_SPOTS. A single settings row holds the current location, so
    each tap simply overwrites the previous one.
 ============================================================ */
 const MARSHAL_LOCATION_KEY = 'marshal:location';
@@ -198,10 +292,12 @@ async function handleMarshalCallback(cq, env, cors) {
     return jsonResponse({ ok: true }, 200, cors);
   }
 
-  await env.CHAT_MESSAGES.put(
-    MARSHAL_LOCATION_KEY,
-    JSON.stringify({ spot: spotId, updatedAt: Date.now() })
-  );
+  await env.DB.prepare(
+    `INSERT INTO settings(key, value, updatedAt) VALUES (?,?,?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updatedAt = excluded.updatedAt`
+  )
+  .bind(MARSHAL_LOCATION_KEY, spotId, Date.now())
+  .run();
 
   // Toast on the marshal's screen — this also stops the button's spinner.
   await answerCallbackQuery(env, cq.id, `Location set: ${spot.label}`);
@@ -216,11 +312,10 @@ async function handleMarshalCallback(cq, env, cors) {
 }
 
 async function handleMarshalLocation(env, cors) {
-  const raw = await env.CHAT_MESSAGES.get(MARSHAL_LOCATION_KEY);
-  if (!raw) return jsonResponse({ available: false }, 200, cors);
-
-  let saved;
-  try { saved = JSON.parse(raw); } catch { return jsonResponse({ available: false }, 200, cors); }
+  const saved = await env.DB.prepare(
+    'SELECT value AS spot, updatedAt FROM settings WHERE key = ?'
+  ).bind(MARSHAL_LOCATION_KEY).first();
+  if (!saved) return jsonResponse({ available: false }, 200, cors);
 
   const spot = MARSHAL_SPOTS[saved.spot];
   if (!spot) return jsonResponse({ available: false }, 200, cors);
@@ -380,9 +475,9 @@ async function handleBookingLookup(bookingId, env, cors) {
     // 1. Check to see if the job is Completed or Cancelled before getting the tracking link
     const bookingStatusRes = await fetch(
       `https://autocab-api.azure-api.net/booking/v1/booking/${bookingId}`,
-      {headers: { 'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY }}
+      { headers: { 'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY } }
     );
-    
+
     if (bookingStatusRes.status === 404) {
       return jsonResponse({ error: 'Booking not found' }, 404, cors);
     }
@@ -417,54 +512,54 @@ async function handleBookingLookup(bookingId, env, cors) {
 
 
     // GET DRIVERS DETAILS ONCE THE TAXI IS DISPATCHED
-const driverId = bookingStatus.dispatchedBooking?.driverId ?? null;
-const vehicleId = bookingStatus.dispatchedBooking?.vehicleId ?? null;
+    const driverId = bookingStatus.dispatchedBooking?.driverId ?? null;
+    const vehicleId = bookingStatus.dispatchedBooking?.vehicleId ?? null;
 
-let driverDetails = null;
-let vehicleDetails = null;
+    let driverDetails = null;
+    let vehicleDetails = null;
 
-if (driverId) {
-  const driverRes = await fetch(
-    `https://autocab-api.azure-api.net/booking/v1/drivers/${driverId}`,
-    {
-      headers: {
-        'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY
+    if (driverId) {
+      const driverRes = await fetch(
+        `https://autocab-api.azure-api.net/booking/v1/drivers/${driverId}`,
+        {
+          headers: {
+            'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY
+          }
+        }
+      );
+
+      if (driverRes.ok) {
+        driverDetails = await driverRes.json();
       }
     }
-  );
 
-  if (driverRes.ok) {
-    driverDetails = await driverRes.json();
-  }
-}
+    if (vehicleId) {
+      const vehicleRes = await fetch(
+        `https://autocab-api.azure-api.net/booking/v1/vehicles/${vehicleId}`,
+        {
+          headers: {
+            'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY
+          }
+        }
+      );
 
-if (vehicleId) {
-  const vehicleRes = await fetch(
-    `https://autocab-api.azure-api.net/booking/v1/vehicles/${vehicleId}`,
-    {
-      headers: {
-        'Ocp-Apim-Subscription-Key': env.AUTOCAB_KEY
+      if (vehicleRes.ok) {
+        vehicleDetails = await vehicleRes.json();
       }
     }
-  );
 
-  if (vehicleRes.ok) {
-    vehicleDetails = await vehicleRes.json();
-  }
-}
-
-const driver = driverId && driverDetails
-  ? {
-      driverId,
-      vehicleId,
-      name: driverDetails.fullName || `${driverDetails.forename || ''} ${driverDetails.surname || ''}`.trim(),
-      car: [vehicleDetails?.make, vehicleDetails?.model].filter(Boolean).join(' '),
-      plate: vehicleDetails?.registration ?? null
-    }
-  : {
-      status: 'pending',
-      message: 'Driver will be dispatched soon'
-    };
+    const driver = driverId && driverDetails
+      ? {
+        driverId,
+        vehicleId,
+        name: driverDetails.fullName || `${driverDetails.forename || ''} ${driverDetails.surname || ''}`.trim(),
+        car: [vehicleDetails?.make, vehicleDetails?.model].filter(Boolean).join(' '),
+        plate: vehicleDetails?.registration ?? null
+      }
+      : {
+        status: 'pending',
+        message: 'Driver will be dispatched soon'
+      };
 
     // 3. Return ONLY what the browser needs — never proxy raw API output.
     return jsonResponse({
@@ -621,7 +716,7 @@ async function handleCallback(request, env, cors) {
         env,
         `📞 Callback request\n` +
         `Booking: ${hasBooking ? bookingId : '(no booking — browse mode)'}` +
-        (phone   ? `\nPhone: ${phone}`     : '') +
+        (phone ? `\nPhone: ${phone}` : '') +
         (message ? `\nMessage: ${message}` : '')
       );
     } catch (err) {
@@ -647,11 +742,11 @@ async function handleCallback(request, env, cors) {
   Send message to telegram chat
 ============================================================ */
 
-async function sendTelegram(env, text){
+async function sendTelegram(env, text) {
   const url = `https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`;
   const res = await fetch(url, {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       chat_id: env.CHAT_ID,
       text
@@ -733,7 +828,7 @@ async function getOrCreatePassengerThread(env, bookingId, terminal) {
 // Booking topics are created before the terminal is known ("BK X · Unknown")
 // and renamed once it is. Guest topics keep their name for life.
 async function getOrCreateThread(env, conv, terminal) {
-  const idKey   = `${conv.key}:thread`;
+  const idKey = `${conv.key}:thread`;
   const nameKey = `${conv.key}:thread:name`;
   const desiredName = conv.kind === 'booking'
     ? topicName(conv.bookingId, terminal)

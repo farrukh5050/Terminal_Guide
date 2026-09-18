@@ -1,40 +1,11 @@
-# ============================================================
-# Cloudflare Workers config for the StreetCars backend.
-# Wrangler reads this file to know what to deploy and how.
-# ============================================================
-
-# The Worker's name in the Cloudflare dashboard.
-# Also used as the subdomain on workers.dev (see below).
 name = "streetcars-api"
-
-# Entry point — the file Wrangler bundles and uploads.
 main = "worker.js"
+compatibility_date = "2026-06-10"
 
-# Pins the Worker runtime to a specific date's behaviour so future
-# Cloudflare runtime updates can't break your code. Bump this when
-# you want to opt into newer features.
-compatibility_date = "2026-05-08"
-
-# Backend api url:
-# api-manair.bshire.co.uk
-# Useful for testing before wiring up your own domain.
-workers_dev = true
-
-# Routes (uncomment and edit once you have a custom domain set up):
-# routes = [
-#   { pattern = "pickup.yourdomain.com/api/*", zone_name = "yourdomain.com" }
-# ]
-
-# Serve the static frontend (public/index.html, app.js, styles.css, photos/)
-# as Workers static assets. A request that matches a file is served directly;
-# anything else (the /api/* routes) falls through to worker.js. Frontend files
-# live under public/ so worker.js and this config stay at the root and are NOT
-# publicly served. This lets ONE Worker serve both pickup.bshire.co.uk (site)
-# and api-manair.bshire.co.uk (API).
 [assets]
 directory = "public"
 
-[[kv_namespaces]]
-binding = "CHAT_MESSAGES"
-id = "f675806e0dcc40e18d9daaf0cffeb836"
-preview_id = "c2aa7a6264a04181a122d05703dc041d"
+[[d1_databases]]
+binding = "DB"
+database_name = "chat-db"
+database_id = "fab7f1ff-5398-4a89-a652-67238c6a41ea"

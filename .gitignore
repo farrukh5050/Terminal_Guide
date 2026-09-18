@@ -1,4 +1,36 @@
+# Local assistant configuration
 .claude/
+
+# Cloudflare local state and cache
 .wrangler/
+
+# Secrets and local environment overrides
 .dev.vars
+.dev.vars.*
+.env
+.env.*
+!.dev.vars.example
+!.env.example
+
+# Dependencies and generated output
+node_modules/
+/dist/
+/build/
+/coverage/
+/.cache/
+*.tsbuildinfo
+
+# Logs and temporary editor files
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# Operating system files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Local booking response (may contain passenger details)
 get_booking.json
