@@ -1,108 +1,114 @@
 # StreetCars Manchester — Pickup Guidance
 
-A lightweight, mobile-first web app that takes an arriving passenger from booking ID to driver, with step-by-step landmarks through Manchester Airport.
+A mobile-first web app that takes an arriving passenger from booking ID to
+driver, with step-by-step landmarks through Manchester Airport and a live
+chat whose operator side is plain Telegram.
 
 ## Files
 
-| File          | What it is                                                       |
-|---------------|------------------------------------------------------------------|
-| `index.html`  | Page structure — four views and a callback dialog                |
-| `styles.css`  | All styling (cream / ink / terracotta palette)                   |
-| `app.js`      | Front-end logic, state, route data, mock API for development     |
-| `worker.js`   | **Backend** — Cloudflare Worker that proxies to Autocab          |
-| `README.md`   | This file                                                        |
+| File | What it is |
+|---|---|
+| `public/index.html` | Page structure — the views, chat dialog and footer |
+| `public/styles.css` | All styling (cream / ink / terracotta palette) |
+| `public/app.js` | Front-end logic, state, route data (photos, times), chat polling |
+| `public/i18n.js` | Every user-facing string, in 5 languages (EN, ES, AR, 简, 繁) |
+| `public/photos/` | Landmark photos for each terminal's steps |
+| `worker.js` | **Backend** — Cloudflare Worker: Autocab, Telegram, D1 |
+| `schemas.sql` | D1 tables (`threads`, `messages`, `settings`) |
+| `tests/` | `node --test` suites, no framework |
 
-## Architecture (read this first)
+## Architecture
 
 ```
    Customer's phone
-        │
-        ▼
-   Static site  (index.html, styles.css, app.js)
-        │   fetch('/api/booking/12345678')
-        ▼
-   Cloudflare Worker  (worker.js)  ◄─── holds AUTOCAB_KEY (server-side secret)
-        │
-        ▼
-   Autocab API
+        |
+        v
+   Cloudflare Worker (worker.js)  <-- serves public/ via [assets]
+        |                             holds AUTOCAB_KEY and the Telegram secrets
+        +--> Autocab API              booking status, tracking link, driver, vehicle
+        +--> Telegram supergroup      one Topic per passenger; operators just reply
+        +--> D1 "chat-db"             topic mapping, chat history, marshal location
 ```
 
-**Why a backend?** The Autocab subscription key cannot live in the browser. If it did, anyone could view-source, copy it, and hammer the API or pull other bookings. The Worker holds the key, validates requests, and returns only the data the browser needs.
+**Why a backend?** The Autocab subscription key cannot live in the browser —
+anyone could view-source it and pull other bookings. The Worker holds the
+key, validates requests, and returns only what the browser needs. It also
+serves the static files, so frontend and API share an origin.
+
+**Why Telegram?** It already provides notifications, threading, mobile apps
+and operators who know how to use it. No dispatch dashboard to build, no
+training, no commands: a Topic per passenger, and replying in it reaches the
+passenger's browser within about 3 seconds.
 
 ## User flow
 
-1. **Booking ID** — passenger enters their 8-digit ID. The Worker calls Autocab, validates the booking, and returns driver/vehicle info plus a live tracking URL.
-2. **Terminal picker** — they tap their terminal (skipped if Autocab tells us which one is assigned).
-3. **Step-by-step landmarks** — 3–5 short instructions with photos. Every step has a "Call" button (rings the driver) and a "Request callback" button (opens the dialog).
-4. **Callback dialog** — passenger enters their phone number for a callback, or toggles to send a written message instead.
-5. **Arrived screen** — driver name, plate, photo of the pickup spot, "Track driver live" link (Autocab tracking URL), one-tap call/text.
+1. **Booking ID** — passenger enters their 8-digit ID. The Worker checks the
+   booking is still live (archived/completed ones return 410), fetches the
+   tracking URL, and adds driver and vehicle details once a car is dispatched.
+2. **Terminal picker** — tapped, or skipped when Autocab already tells us.
+3. **Step-by-step landmarks** — short instructions with photos, plus call and
+   callback buttons throughout.
+4. **Arrived screen** — driver, plate, pickup photo, live tracking link, and
+   the chat. If a marshal is on shift, a directions button points at the spot
+   they last selected in Telegram.
 
-## Setting it up locally
+Passengers without a booking (or who open chat from the footer) get a guest
+conversation keyed to a localStorage ID, so their thread survives a reload.
 
-You can run the front-end as static files with no backend, using the mock API:
-
-1. Make sure `USE_MOCK_API = true` is set at the top of `app.js`.
-2. Open `index.html` in a browser, or run `python3 -m http.server 8080` in the folder.
-3. Enter any 8-digit number except `00000000` (which simulates "booking not found") to step through the flow.
-
-## Deploying for real
-
-### 1. Frontend — Cloudflare Pages
-
-Drag-drop the folder at [pages.cloudflare.com](https://pages.cloudflare.com) or connect a Git repo. Set a custom domain like `pickup.streetcars.co.uk`.
-
-### 2. Backend — Cloudflare Worker
+## Running it locally
 
 ```bash
-npm install -g wrangler
-wrangler login
+npx wrangler dev
 ```
 
-Create `wrangler.toml` next to `worker.js`:
+Serves `public/` and the API together on `http://localhost:8787`. The
+frontend targets `localhost:8787` automatically when the page is on
+localhost.
 
-```toml
-name = "streetcars-api"
-main = "worker.js"
-compatibility_date = "2025-01-01"
-```
-
-Add your Autocab subscription key as a secret (never commit it):
+Local dev needs `.dev.vars` (never committed) with `AUTOCAB_KEY`,
+`TELEGRAM_BOT_TOKEN`, `CHAT_ID` and `TELEGRAM_WEBHOOK_SECRET`, plus the D1
+schema applied to the local database:
 
 ```bash
-wrangler secret put AUTOCAB_KEY
-# paste your key when prompted
+npx wrangler d1 execute chat-db --local --file=schemas.sql
 ```
 
-Optionally add a webhook URL so callback requests ping your office (Slack, Teams, anything that takes an incoming webhook):
+Telegram cannot reach localhost, so operator replies only arrive against the
+deployed Worker.
+
+## Deploying
 
 ```bash
-wrangler secret put CALLBACK_WEBHOOK_URL
+npx wrangler secret put AUTOCAB_KEY
+npx wrangler secret put TELEGRAM_BOT_TOKEN
+npx wrangler secret put CHAT_ID
+npx wrangler secret put TELEGRAM_WEBHOOK_SECRET
+npx wrangler d1 execute chat-db --remote --file=schemas.sql
+npx wrangler deploy
 ```
 
-Deploy:
+Then register the Telegram webhook with the same `TELEGRAM_WEBHOOK_SECRET`
+and `allowed_updates` of `["message","callback_query"]` — see
+`.claude/CLAUDE.md` for the PowerShell command and the debugging order when
+replies stop arriving.
+
+`wrangler secret put` only works on a Worker that already exists, so deploy
+once first.
+
+## Tests
 
 ```bash
-wrangler deploy
+node --test tests/
 ```
 
-In the Cloudflare dashboard, bind the Worker to a route like `pickup.streetcars.co.uk/api/*`. The frontend's `fetch('/api/booking/12345678')` will then go straight to the Worker because they share an origin.
+Plain `node:test` with `node:sqlite` standing in for D1, so the real SQL runs.
 
-### 3. Switch off mock mode
+## Customising
 
-In `app.js`:
-
-```js
-const USE_MOCK_API = false;
-```
-
-Re-deploy the frontend. You're live.
-
-## What still needs your attention
-
-The Worker's `handleBookingLookup` currently returns placeholder driver info because the Autocab `trackingLink` endpoint only returns the tracking URL. To fetch real driver name, vehicle, plate, and phone you'll need to call your dispatch system's booking-details endpoint as well — there's a clearly marked `TODO` block in `worker.js` showing where to plug it in. Ask Autocab support which endpoint returns those fields for your subscription.
-
-The walking instructions in `app.js` (`ROUTES` object) are plausible-sounding examples. Walk each terminal yourself, take photos at each decision point, edit the step text, and host the photos somewhere (Cloudflare R2, S3, Cloudinary). Recommended dimensions: 1200×900, under 200KB each.
-
-## Customising the look
-
-Colour and typography variables are at the top of `styles.css`. Change `--ink`, `--bg`, and `--accent` to match your brand colours. Fonts (Fraunces + Geist) load from Google Fonts.
+- **Copy** — all of it is in `public/i18n.js`, including the walking
+  instructions (`route.<key>.*` keys). `public/app.js` holds only the
+  untranslatable route data: photos, walking times, badge colours.
+- **Photos** — `public/photos/`, roughly 1200x900 and under 200KB each. Walk
+  each terminal, shoot at every decision point.
+- **Look** — colour and type variables sit at the top of `public/styles.css`
+  (`--ink`, `--bg`, `--accent`). Fonts load from Google Fonts.

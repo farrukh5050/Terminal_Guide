@@ -34,3 +34,5 @@ Desktop.ini
 
 # Local booking response (may contain passenger details)
 get_booking.json
+
+*.md
